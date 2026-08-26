@@ -14,11 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Interactive multiple-choice questions with live tallying: the admin dashboard shows per-question answer distribution and per-user correctness
 - Mini-pyramid synchronized node lighting: when the admin lights a node, every participant sees the matching node light up at the same instant
 - "Method 1: Top-Down" now shows the complete 5 steps (Subject → Question → Answer → SCQA opening → Key Lines)
+- Admin "Show / Hide Cursors" toggle: admins can globally switch off front-end cursor broadcasting and cursor overlay rendering with a single pill switch in the dashboard header (synced via RTDB `cursorVisible`, defaults to visible)
+- Sticky presenter script panel on the dashboard: when a slide has a `script.back`, a scrollable teleprompter card sticks to the right of the slide on the back view only (audience never sees it)
 
 ### Changed
 - Slide 5, step 2 title changed from "設想讀者的問題" to "設想問題的核心"
 - Replaced `<>...</>` with a keyed `<Fragment>` in `app/admin/dashboard/[roomId]/page.tsx` to silence the React list-key warning
 - Participant bottom-right watermark trimmed from "BY 918 VINAS, 以TENIX ENGINE 製作" to "BY 918 VINAS WU"
+- Presenter script for "4 Key Points When Using SCQA" condensed from the full PDF body to a 13-line cheat sheet (kept self-checks, formulas, the single numeric example)
 
 ### Fixed
 - `Each child in a list should have a unique "key" prop` warning emitted by AdminDashboardPage

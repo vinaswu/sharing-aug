@@ -55,8 +55,8 @@ export default function PresenterPage() {
   // Broadcast user slide index
   useUserSlideIndex(roomId, user?.id || '', localSlide);
 
-  // Broadcast cursor
-  useCursorBroadcast(roomId, user?.id || '', Boolean(user));
+  // Broadcast cursor — only when admin has cursor visibility enabled
+  useCursorBroadcast(roomId, user?.id || '', Boolean(user) && (room?.cursorVisible ?? true));
 
   // Heartbeat
   useHeartbeat(roomId, user?.id || '', Boolean(user));
@@ -165,6 +165,7 @@ export default function PresenterPage() {
             slide={currentSlide}
             slideNumber={localSlide}
             totalSlides={SLIDES.length}
+            mode="front"
             onQuizSelect={handleQuizSelect}
             pyramidLit={room?.pyramidLit}
           />

@@ -20,18 +20,33 @@ export interface QuizAnswer {
   at: number;
 }
 
+/**
+ * Each content-bearing field on a slide is a pair of `front` (audience-facing
+ * text) and `back` (presenter/admin-facing notes). The two share the SAME
+ * structural type so they stay in lock-step — only the wording differs.
+ */
+export interface Sided<T> {
+  front: T;
+  back: T;
+}
+
 export interface Slide {
   id: string;
-  kicker?: string;
-  title: string;
+  kicker?: Sided<string>;
+  title: Sided<string>;
   type: SlideType;
-  // For different slide types
-  story?: string;          // HTML string for story slides
-  table?: TableData;       // For table slides
-  steps?: StepData[];      // For steps slides
-  pyramid?: TierData[];    // For pyramid slide
-  quiz?: QuizData;         // For quiz slide
-  takeaway?: string;       // For takeaway slide
+  story?: Sided<string>;
+  table?: Sided<TableData>;
+  steps?: Sided<StepData[]>;
+  pyramid?: Sided<TierData[]>;
+  quiz?: Sided<QuizData>;
+  takeaway?: Sided<string>;
+  /**
+   * Optional presenter script. Renders as a sticky/scrollable side panel on
+   * the right of the slide content when `mode === 'back'`. Front (audience)
+   * view ignores it. Supports plain text + blank lines as paragraph breaks.
+   */
+  script?: Sided<string>;
 }
 
 export type SlideType =
@@ -51,7 +66,21 @@ export interface TableData {
 
 export interface StepData {
   title: string;
+  /** Audience-facing one-liner, displayed under the title. */
   description: string;
+  /**
+   * Optional presenter-only content. Rendered ONLY when `mode === 'back'`
+   * (admin/presenter view), as a second column next to `description`.
+   * Supports three formats:
+   *  - `noteLines`     → rendered as a vertical list of full lines (back only).
+   *                      Best when each line is a complete note like "S｜Situation 情境：…".
+   *  - `noteRows`      → rendered as a compact key/value table (back only).
+   *  - `note` (plain)  → rendered as a short paragraph with a left accent bar (back only).
+   * Front (audience) view ignores all three.
+   */
+  note?: string;
+  noteRows?: { label: string; detail: string }[];
+  noteLines?: string[];
 }
 
 export interface TierData {
@@ -74,6 +103,14 @@ export interface Room {
   updatedAt: number;
   /** Tier indexes that the admin has lit on the pyramid slide (admin-driven) */
   pyramidLit?: number[];
+  /**
+   * Admin-controlled visibility flag for front-end cursor positions.
+   * When `false`:
+   *  - presenter / audience clients stop broadcasting their cursor position
+   *  - admin's CursorOverlay stops rendering
+   * Defaults to `true` when the field is missing.
+   */
+  cursorVisible?: boolean;
 }
 
 export interface CursorPosition {

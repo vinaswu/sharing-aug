@@ -47,6 +47,7 @@ export async function ensureRoom(roomId: string) {
       users: {},
       quizAnswers: [],
       updatedAt: Date.now(),
+      cursorVisible: true,
     });
   }
 }
@@ -114,6 +115,12 @@ export async function recordQuizAnswer(roomId: string, answer: QuizAnswer) {
 export async function setPyramidLit(roomId: string, lit: number[]) {
   const litRef = ref(database, `rooms/${roomId}/pyramidLit`);
   await set(litRef, lit);
+}
+
+// Toggle visibility of front-end cursor positions (admin-driven)
+export async function setCursorVisible(roomId: string, visible: boolean) {
+  const visRef = ref(database, `rooms/${roomId}/cursorVisible`);
+  await set(visRef, visible);
 }
 
 // Verify admin password

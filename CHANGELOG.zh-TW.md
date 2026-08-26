@@ -13,11 +13,14 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 - 互動選擇題與即時統計：管理員後台可看到每題的作答分布與個人答對／答錯
 - 迷你金字塔節點同步點燈：管理員亮燈 → 全體學員同步看到對應節點亮起
 - 「方法一：由上而下」步驟顯示完整 5 步（定主題／設想問題的核心／寫下答案／SCQA 開場／Key Line）
+- 後台「顯示滑鼠／隱藏滑鼠」toggle：管理員可一鍵控制前端用戶是否廣播滑鼠位置，以及後台是否繪製游標 overlay（同步經由 RTDB `cursorVisible`，預設為顯示中）
+- 後台 sticky 講者讀稿面板：當某頁 `script.back` 有內容時，於後台視圖右側顯示可滾動的讀稿欄（前台完全不可見）
 
 ### 修改
 - 第五張簡報步驟二標題由「設想讀者的問題」改為「設想問題的核心」
 - `app/admin/dashboard/[roomId]/page.tsx` 將 `<>...</>` 改為帶 key 的 `<Fragment>`，消除 React 列表 key 警告
 - 學員頁右下角「BY 918 VINAS, 以TENIX ENGINE 製作」精簡為「BY 918 VINAS WU」
+- 「使用 SCQA 時的 4 個重點」講者讀稿由完整 PDF 內容簡化為 13 行重點速覽（保留自檢句、公式、數據、例示）
 
 ### 修復
 - 修正 AdminDashboardPage 出現的 `Each child in a list should have a unique "key" prop` 警告

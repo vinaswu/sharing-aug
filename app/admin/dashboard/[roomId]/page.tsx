@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import SlideViewer from '@/components/SlideViewer';
 import { SLIDES } from '@/lib/slides-data';
 import { useRoom, useAdminSlideControl, usePyramidReset, useLocalSlideChangeNotifier } from '@/lib/hooks';
-import { setPyramidLit } from '@/lib/firebase';
+import { setPyramidLit, setCursorVisible } from '@/lib/firebase';
 import type { User, QuizAnswer } from '@/lib/types';
 import Link from 'next/link';
 
@@ -82,8 +82,11 @@ export default function AdminDashboardPage() {
     [users]
   );
 
-  // Extract other users' cursor positions (same slide only)
+  // Extract other users' cursor positions (same slide only).
+  // Hidden when admin has toggled cursor visibility off.
+  const cursorVisible = room?.cursorVisible ?? true;
   const remoteCursors = useMemo(() => {
+    if (!cursorVisible) return [];
     return users
       .filter((u) => u.cursor != null)
       .map((u) => ({
@@ -93,7 +96,16 @@ export default function AdminDashboardPage() {
         x: u.cursor!.x,
         y: u.cursor!.y,
       }));
-  }, [users]);
+  }, [users, cursorVisible]);
+
+  const handleCursorToggle = useCallback(
+    (next: boolean) => {
+      setCursorVisible(roomId, next).catch((err) =>
+        console.error('Failed to toggle cursor visibility', err)
+      );
+    },
+    [roomId]
+  );
 
   // Quiz answers: latest entry per user, sorted by recency
   const quizStats = useMemo(() => {
@@ -149,6 +161,8 @@ export default function AdminDashboardPage() {
           <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>房間：{roomId}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Cursor visibility toggle */}
+          <CursorToggle visible={cursorVisible} onChange={handleCursorToggle} />
           <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
             👥 <b style={{ color: 'var(--accent)' }}>{users.length}</b> 人在線 ·
             <b style={{ color: 'var(--accent)' }}> {totalClicks}</b> 次點擊
@@ -370,6 +384,7 @@ export default function AdminDashboardPage() {
                 slide={currentSlide}
                 slideNumber={currentSlideIndex}
                 totalSlides={SLIDES.length}
+                mode="back"
                 remoteCursors={remoteCursors}
                 onPyramidLight={handlePyramidLight}
               />
@@ -410,7 +425,7 @@ export default function AdminDashboardPage() {
                       marginBottom: 4,
                     }}
                   >
-                    {currentSlide.quiz.options.map((opt, i) => {
+                    {currentSlide.quiz.front.options.map((opt, i) => {
                       const count = quizStats.filter((a) => a.idx === i).length;
                       const isCorrect = opt.correct;
                       return (
@@ -549,6 +564,76 @@ function btnStyle(enabled: boolean): React.CSSProperties {
     opacity: enabled ? 1 : 0.4,
     fontFamily: 'inherit',
   };
+}
+
+/**
+ * Pill-style toggle switch. Admin uses this to control whether the front-end
+ * users broadcast cursor positions and whether the admin's CursorOverlay
+ * renders. State is shared via RTDB so all clients stay in sync.
+ */
+function CursorToggle({
+  visible,
+  onChange,
+}: {
+  visible: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '4px 10px 4px 6px',
+        border: '1px solid var(--line)',
+        borderRadius: 999,
+        background: 'var(--card)',
+        cursor: 'pointer',
+        userSelect: 'none',
+        fontSize: '0.85rem',
+        color: visible ? 'var(--accent)' : 'var(--muted)',
+        transition: 'color .2s',
+      }}
+      title="切換前端用戶的滑鼠游標是否廣播 / 是否顯示"
+    >
+      <span
+        aria-hidden
+        style={{
+          position: 'relative',
+          width: 32,
+          height: 18,
+          borderRadius: 999,
+          background: visible ? 'var(--accent)' : 'var(--line)',
+          transition: 'background .2s',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: visible ? 16 : 2,
+            width: 14,
+            height: 14,
+            borderRadius: '50%',
+            background: visible ? '#1a1205' : '#888',
+            transition: 'left .2s, background .2s',
+          }}
+        />
+      </span>
+      <span style={{ fontWeight: 700, letterSpacing: '0.04em' }}>
+        {visible ? '顯示滑鼠' : '隱藏滑鼠'}
+      </span>
+      <input
+        type="checkbox"
+        checked={visible}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+        aria-label="切換滑鼠游標顯示"
+      />
+    </label>
+  );
 }
 
 function pickLatestAnswer(

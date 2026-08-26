@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Slide } from '@/lib/types';
+import type { Slide, QuizData, TierData } from '@/lib/types';
 import CursorOverlay from './CursorOverlay';
 
 interface CursorData {
@@ -16,6 +16,12 @@ interface Props {
   slide: Slide;
   slideNumber: number;
   totalSlides: number;
+  /**
+   * Which side of the slide to render:
+   *  - 'front' (default): audience-facing content
+   *  - 'back' : presenter/admin-facing content with a subtle "back view" badge
+   */
+  mode?: 'front' | 'back';
   onQuizSelect?: (idx: number, correct: boolean) => void;
   onPyramidLight?: (idx: number) => void;
   remoteCursors?: CursorData[];
@@ -33,8 +39,25 @@ const SLIDE_ANIMATION_MAP: Record<string, string> = {
   takeaway: 'animate__heartBeat animate__slow',
 };
 
-export default function SlideViewer({ slide, slideNumber, totalSlides, onQuizSelect, onPyramidLight, remoteCursors, pyramidLit }: Props) {
+/** Pick the right side of every sided field on the slide. */
+function pickSide<T>(sided: { front: T; back: T } | undefined, mode: 'front' | 'back'): T | undefined {
+  return sided ? sided[mode] : undefined;
+}
+
+export default function SlideViewer({
+  slide,
+  slideNumber,
+  totalSlides,
+  mode = 'front',
+  onQuizSelect,
+  onPyramidLight,
+  remoteCursors,
+  pyramidLit,
+}: Props) {
   const animClass = SLIDE_ANIMATION_MAP[slide.type] ?? 'animate__fadeIn animate__slow';
+  const isBack = mode === 'back';
+  const scriptBack = isBack ? slide.script?.back : '';
+  const hasScript = Boolean(scriptBack && scriptBack.trim().length > 0);
 
   return (
     <div
@@ -43,30 +66,118 @@ export default function SlideViewer({ slide, slideNumber, totalSlides, onQuizSel
       style={{
         width: 'min(880px, 92vw)',
         position: 'relative',
+        // Subtle visual cue that this is the admin/presenter view.
+        borderLeft: isBack ? '3px solid var(--accent)' : '3px solid transparent',
+        paddingLeft: isBack ? 14 : 0,
       }}
     >
-      {slide.kicker && <div className="kicker">{slide.kicker}</div>}
-
-      {renderSlide(slide, onQuizSelect, onPyramidLight, pyramidLit)}
-
-      <CursorOverlay cursors={remoteCursors || []} />
-
-      {totalSlides > 0 && (
-        <div style={{ marginTop: 28, color: 'var(--muted)', fontSize: '0.78rem', textAlign: 'center' }}>
-          {slideNumber + 1} / {totalSlides}
+      {isBack && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -10,
+            right: 0,
+            fontSize: '0.7rem',
+            letterSpacing: '0.12em',
+            color: 'var(--accent)',
+            background: 'var(--card)',
+            border: '1px solid var(--line)',
+            borderRadius: 4,
+            padding: '2px 8px',
+            fontWeight: 700,
+          }}
+        >
+          後台視圖 · BACK
         </div>
       )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: hasScript ? 'minmax(0, 1fr) 280px' : '1fr',
+          gap: hasScript ? 20 : 0,
+          alignItems: 'start',
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          {slide.kicker && <div className="kicker">{pickSide(slide.kicker, mode)}</div>}
+
+          {renderSlide(slide, mode, onQuizSelect, onPyramidLight, pyramidLit)}
+
+          <CursorOverlay cursors={remoteCursors || []} />
+
+          {totalSlides > 0 && (
+            <div style={{ marginTop: 28, color: 'var(--muted)', fontSize: '0.78rem', textAlign: 'center' }}>
+              {slideNumber + 1} / {totalSlides}
+            </div>
+          )}
+        </div>
+
+        {hasScript && <ScriptPanel text={scriptBack!} />}
+      </div>
     </div>
   );
 }
 
-function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean) => void, onPyramidLight?: (idx: number) => void, pyramidLit?: number[]) {
+function ScriptPanel({ text }: { text: string }) {
+  return (
+    <aside
+      className="script-panel"
+      style={{
+        position: 'sticky',
+        top: 16,
+        maxHeight: 'calc(100vh - 48px)',
+        overflowY: 'auto',
+        background: 'var(--card)',
+        border: '1px solid var(--line)',
+        borderLeft: '3px solid var(--accent)',
+        borderRadius: 6,
+        padding: '14px 16px',
+        fontSize: '0.88rem',
+        lineHeight: 1.7,
+        color: 'var(--ink)',
+        whiteSpace: 'pre-wrap',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '0.7rem',
+          letterSpacing: '0.12em',
+          color: 'var(--accent)',
+          fontWeight: 700,
+          marginBottom: 8,
+          fontFamily: 'inherit',
+        }}
+      >
+        講者讀稿
+      </div>
+      {text}
+    </aside>
+  );
+}
+
+function renderSlide(
+  slide: Slide,
+  mode: 'front' | 'back',
+  onQuizSelect?: (idx: number, correct: boolean) => void,
+  onPyramidLight?: (idx: number) => void,
+  pyramidLit?: number[]
+) {
+  const title = pickSide(slide.title, mode) ?? '';
+  const sidedStory = pickSide(slide.story, mode);
+  const sidedTable = pickSide(slide.table, mode);
+  const sidedSteps = pickSide(slide.steps, mode);
+  const sidedPyramid = pickSide(slide.pyramid, mode);
+  const sidedQuiz = pickSide(slide.quiz, mode);
+  const sidedTakeaway = pickSide(slide.takeaway, mode);
+
   switch (slide.type) {
     case 'cover':
       return (
         <div>
           <h1 style={{ fontSize: '2.3rem', lineHeight: 1.3, marginBottom: 18 }}>
-            {slide.title.split('<br>').map((part, i, arr) => (
+            {title.split('<br>').map((part, i, arr) => (
               <span key={i}>
                 {part}
                 {i < arr.length - 1 && <br />}
@@ -84,16 +195,16 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
     case 'story':
       return (
         <div>
-          <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{slide.title}</h2>
-          <div className="story-box" dangerouslySetInnerHTML={{ __html: slide.story || '' }} />
+          <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{title}</h2>
+          <div className="story-box" dangerouslySetInnerHTML={{ __html: sidedStory || '' }} />
         </div>
       );
 
     case 'table':
       return (
         <div>
-          <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{slide.title}</h2>
-          {slide.table && (
+          <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{title}</h2>
+          {sidedTable && (
             <div style={{ width: '100%', overflow: 'auto' }}>
               <table
                 style={{
@@ -104,7 +215,7 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
               >
                 <thead>
                   <tr>
-                    {slide.table.headers.map((h, i) => (
+                    {sidedTable.headers.map((h, i) => (
                       <th
                         key={i}
                         style={{
@@ -122,7 +233,7 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
                   </tr>
                 </thead>
                 <tbody>
-                  {slide.table.rows.map((row, ri) => (
+                  {sidedTable.rows.map((row, ri) => (
                     <tr key={ri}>
                       {row.map((cell, ci) => {
                         const cellText = typeof cell === 'string' ? cell : cell.text;
@@ -151,8 +262,8 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
                   ))}
                 </tbody>
               </table>
-              {slide.table.afterTableHtml && (
-                <div dangerouslySetInnerHTML={{ __html: slide.table.afterTableHtml }} />
+              {sidedTable.afterTableHtml && (
+                <div dangerouslySetInnerHTML={{ __html: sidedTable.afterTableHtml }} />
               )}
             </div>
           )}
@@ -162,9 +273,9 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
     case 'steps':
       return (
         <div>
-          <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{slide.title}</h2>
+          <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{title}</h2>
           <div style={{ marginTop: 8 }}>
-            {slide.steps?.map((step, i) => (
+            {sidedSteps?.map((step, i) => (
               <div
                 key={i}
                 style={{
@@ -190,9 +301,98 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
                 >
                   {i + 1}
                 </div>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <b style={{ display: 'block', marginBottom: 2 }}>{step.title}</b>
-                  <span style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{step.description}</span>
+                  {mode === 'back' && step.noteRows && step.noteRows.length > 0 ? (
+                    <table
+                      style={{
+                        marginTop: 6,
+                        borderCollapse: 'collapse',
+                        width: '100%',
+                        maxWidth: 640,
+                        fontSize: '0.9rem',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                      }}
+                    >
+                      <tbody>
+                        {step.noteRows.map((row, ri) => (
+                          <tr key={ri}>
+                            <td
+                              style={{
+                                padding: '6px 12px 6px 0',
+                                borderTop: '1px solid var(--line)',
+                                borderBottom:
+                                  ri === step.noteRows!.length - 1 ? '1px solid var(--line)' : 'none',
+                                color: 'var(--accent)',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                verticalAlign: 'top',
+                                width: '38%',
+                              }}
+                            >
+                              {row.label}
+                            </td>
+                            <td
+                              style={{
+                                padding: '6px 0',
+                                borderTop: '1px solid var(--line)',
+                                borderBottom:
+                                  ri === step.noteRows!.length - 1 ? '1px solid var(--line)' : 'none',
+                                color: 'var(--muted)',
+                                lineHeight: 1.55,
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              {row.detail}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : mode === 'back' && step.noteLines && step.noteLines.length > 0 ? (
+                    <ul
+                      style={{
+                        marginTop: 6,
+                        marginBottom: 0,
+                        paddingLeft: 0,
+                        listStyle: 'none',
+                        borderLeft: '2px solid var(--accent)',
+                        background: 'rgba(245, 185, 66, 0.06)',
+                      }}
+                    >
+                      {step.noteLines.map((line, li) => (
+                        <li
+                          key={li}
+                          style={{
+                            padding: '6px 12px',
+                            color: 'var(--ink)',
+                            fontSize: '0.92rem',
+                            lineHeight: 1.65,
+                            borderBottom:
+                              li === step.noteLines!.length - 1 ? 'none' : '1px dashed var(--line)',
+                          }}
+                        >
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : mode === 'back' && step.note ? (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        color: 'var(--muted)',
+                        fontSize: '0.88rem',
+                        lineHeight: 1.6,
+                        padding: '6px 10px',
+                        borderLeft: '2px solid var(--accent)',
+                        background: 'rgba(245, 185, 66, 0.06)',
+                      }}
+                    >
+                      {step.note}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{step.description}</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -201,22 +401,31 @@ function renderSlide(slide: Slide, onQuizSelect?: (idx: number, correct: boolean
       );
 
     case 'pyramid':
-      return <Pyramid tiers={slide.pyramid || []} onLight={onPyramidLight} title={slide.title} remoteLit={pyramidLit} />;
+      return (
+        <Pyramid
+          tiers={sidedPyramid || []}
+          onLight={onPyramidLight}
+          title={title}
+          remoteLit={pyramidLit}
+        />
+      );
 
     case 'quiz':
-      return <QuizComponent slide={slide} onSelect={onQuizSelect} />;
+      return sidedQuiz ? (
+        <QuizComponent title={title} quiz={sidedQuiz} onSelect={onQuizSelect} />
+      ) : null;
 
     case 'takeaway':
       return (
         <div>
-          <h1 style={{ fontSize: '1.9rem', marginBottom: 18 }}>{slide.title}</h1>
+          <h1 style={{ fontSize: '1.9rem', marginBottom: 18 }}>{title}</h1>
           <div
             className="story-box"
             style={{ fontSize: '1.2rem', textAlign: 'center' }}
-            dangerouslySetInnerHTML={{ __html: slide.takeaway || '' }}
+            dangerouslySetInnerHTML={{ __html: sidedTakeaway || '' }}
           />
           <p style={{ fontSize: '1.12rem', color: 'var(--muted)', lineHeight: 1.8, textAlign: 'center', marginTop: 22 }}>
-            ☕ 下次報告前，想想小美和她的那句話。
+            � 下次報告前，想想小美和她的那句話。
           </p>
         </div>
       );
@@ -232,7 +441,7 @@ function Pyramid({
   title,
   remoteLit,
 }: {
-  tiers: NonNullable<Slide['pyramid']>;
+  tiers: TierData[];
   onLight?: (idx: number) => void;
   title: string;
   /** When provided, lit state is driven by admin (read-only on this client). */
@@ -331,12 +540,17 @@ function Pyramid({
   );
 }
 
-function QuizComponent({ slide, onSelect }: { slide: Slide; onSelect?: (idx: number, correct: boolean) => void }) {
+function QuizComponent({
+  title,
+  quiz,
+  onSelect,
+}: {
+  title: string;
+  quiz: QuizData;
+  onSelect?: (idx: number, correct: boolean) => void;
+}) {
   const [selected, setSelected] = useState<number | null>(null);
   const [message, setMessage] = useState('');
-
-  if (!slide.quiz) return null;
-  const quiz = slide.quiz;
 
   function select(idx: number, correct: boolean) {
     if (selected !== null) return;
@@ -347,7 +561,7 @@ function QuizComponent({ slide, onSelect }: { slide: Slide; onSelect?: (idx: num
 
   return (
     <div>
-      <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{slide.title}</h2>
+      <h2 style={{ fontSize: '1.7rem', marginBottom: 16 }}>{title}</h2>
       <p style={{ fontSize: '1.12rem', color: 'var(--muted)', lineHeight: 1.8, marginBottom: 16 }}>
         {quiz.question}
       </p>

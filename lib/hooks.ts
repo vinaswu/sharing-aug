@@ -47,6 +47,7 @@ export function useRoom(roomId: string | null) {
           quizAnswers: normalizeQuizAnswers(data.quizAnswers),
           updatedAt: data.updatedAt ?? 0,
           pyramidLit: Array.isArray(data.pyramidLit) ? data.pyramidLit : [],
+          cursorVisible: typeof data.cursorVisible === 'boolean' ? data.cursorVisible : true,
         });
       } else {
         setRoom(null);
