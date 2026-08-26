@@ -171,4 +171,6 @@ npm start        # Start production server
 
 ## License
 
-UNLICENSED · Private sharing project
+MIT License — see the [LICENSE](./LICENSE) file.
+
+Copyright © 2026 918 VINAS WU

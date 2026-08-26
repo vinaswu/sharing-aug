@@ -174,4 +174,6 @@ npm start        # 啟動生產 server
 
 ## 授權
 
-UNLICENSED · 私人分享專案
+MIT License · 詳見 [LICENSE](./LICENSE) 檔
+
+Copyright © 2026 918 VINAS WU
