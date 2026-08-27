@@ -2,7 +2,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, onValue, set, update, push, remove, off } from 'firebase/database';
 import type { Database } from 'firebase/database';
-import type { Room, User, QuizAnswer } from './types';
+import type { Room, User, QuizAnswer, ChatMessage } from './types';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -105,10 +105,58 @@ export async function leaveRoom(roomId: string, userId: string) {
   await remove(userRef);
 }
 
+/**
+ * Admin: forcibly remove a user from a room. This removes the user's node
+ * under `rooms/{roomId}/users/{userId}`; the targeted client detects their
+ * own disappearance and logs them out.
+ *
+ * Idempotent — safe to call on a user who already left.
+ */
+export async function kickUser(roomId: string, userId: string) {
+  await remove(getUserRef(roomId, userId));
+}
+
 // Record quiz answer
 export async function recordQuizAnswer(roomId: string, answer: QuizAnswer) {
   const answerRef = ref(database, `rooms/${roomId}/quizAnswers`);
   await push(answerRef, answer);
+}
+
+// Send a chat message
+export async function sendChatMessage(
+  roomId: string,
+  message: Omit<ChatMessage, 'id'>
+) {
+  const msgRef = ref(database, `rooms/${roomId}/messages`);
+  const newRef = push(msgRef);
+  await set(newRef, { ...message, id: newRef.key });
+}
+
+// Subscribe to chat messages, returns an unsubscribe function
+export function subscribeChatMessages(
+  roomId: string,
+  callback: (messages: ChatMessage[]) => void
+) {
+  const msgRef = ref(database, `rooms/${roomId}/messages`);
+  const unsubscribe = onValue(msgRef, (snap) => {
+    const raw = snap.val();
+    if (!raw) {
+      callback([]);
+      return;
+    }
+    const msgs: ChatMessage[] = Object.values(raw as Record<string, ChatMessage>);
+    callback(msgs.sort((a, b) => (a.at || 0) - (b.at || 0)));
+  });
+  return () => {
+    unsubscribe();
+    off(msgRef);
+  };
+}
+
+// Clear all chat messages in a room
+export async function clearChatMessages(roomId: string) {
+  const msgRef = ref(database, `rooms/${roomId}/messages`);
+  await remove(msgRef);
 }
 
 // Update the lit pyramid tier indexes (admin-driven)

@@ -1,19 +1,25 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import SlideViewer from '@/components/SlideViewer';
 import Navigation from '@/components/Navigation';
 import CursorOverlay from '@/components/CursorOverlay';
 import BubbleEffect from '@/components/BubbleEffect';
+import LikeLeaderboard from '@/components/LikeLeaderboard';
+import ChatInput from '@/components/ChatInput';
+import ChatMessagePanel from '@/components/ChatMessagePanel';
 import { SLIDES } from '@/lib/slides-data';
-import { useRoom, useRoomPresence, useUserSlideIndex, useCursorBroadcast, useGlobalClickTracker, useQuizAnswer, useHeartbeat, usePyramidReset, useLocalSlideChangeNotifier } from '@/lib/hooks';
+import { useRoom, useRoomPresence, useUserSlideIndex, useCursorBroadcast, useGlobalClickTracker, useQuizAnswer, useHeartbeat, usePyramidReset, useLocalSlideChangeNotifier, useAwayLogout, useKickDetection, useChatMessages } from '@/lib/hooks';
 import type { User, QuizAnswer } from '@/lib/types';
 import Link from 'next/link';
+
+const AWAY_TIMEOUT_MS = 30_000;
 
 export default function PresenterPage() {
   const params = useParams<{ roomId: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const roomId = params?.roomId || 'pyramid-ch3';
   const queryName = searchParams.get('name') || '';
 
@@ -39,6 +45,28 @@ export default function PresenterPage() {
     }
   }, [queryName]);
 
+  // Auto-logout when user leaves the site for >30s
+  // (tab switched, browser minimized, navigated to another origin, or closed).
+  // On timeout: wipe sessionStorage so the next reload at "/" forces a fresh login.
+  useAwayLogout(AWAY_TIMEOUT_MS, () => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.removeItem('pyr_id');
+    sessionStorage.removeItem('pyr_name');
+    sessionStorage.removeItem('pyr_color');
+    setUser(null);
+    router.replace('/');
+  });
+
+  // Admin kicked this user out: same logout flow as above, plus show a banner.
+  useKickDetection(roomId, user?.id ?? '', () => {
+    if (typeof window === 'undefined') return;
+    sessionStorage.removeItem('pyr_id');
+    sessionStorage.removeItem('pyr_name');
+    sessionStorage.removeItem('pyr_color');
+    setUser(null);
+    router.replace('/');
+  });
+
   // Join room
   useRoomPresence(roomId, user);
 
@@ -63,6 +91,9 @@ export default function PresenterPage() {
 
   // Track every click anywhere on the page
   useGlobalClickTracker(roomId, user?.id || '', Boolean(user));
+
+  // Subscribe to chat messages
+  const messages = useChatMessages(roomId);
 
   // Reset pyramid lit state on user-initiated navigation into the pyramid slide
   usePyramidReset(roomId);
@@ -150,6 +181,20 @@ export default function PresenterPage() {
 
       <BubbleEffect enabled />
 
+      {/* Chat */}
+      {user && (
+        <>
+          <ChatInput
+            roomId={roomId}
+            userId={user.id}
+            userName={user.name}
+            userColor={user.color}
+            messages={messages}
+          />
+          <ChatMessagePanel messages={messages} />
+        </>
+      )}
+
       <div
         style={{
           flex: 1,
@@ -194,6 +239,9 @@ export default function PresenterPage() {
             y: u.cursor!.y,
           }))}
       />
+
+      {/* Like leaderboard + copyright */}
+      <LikeLeaderboard users={room?.users || {}} currentUserId={user.id} />
       <div
         style={{
           position: 'fixed',

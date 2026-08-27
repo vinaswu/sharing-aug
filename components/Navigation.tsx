@@ -10,6 +10,35 @@ interface Props {
   onJump: (i: number) => void;
 }
 
+const kbdStyle: React.CSSProperties = {
+  display: 'inline-block',
+  background: 'rgba(255,255,255,0.08)',
+  border: '1px solid rgba(255,255,255,0.18)',
+  borderRadius: 4,
+  padding: '1px 5px',
+  fontSize: '0.72rem',
+  fontFamily: 'monospace',
+  color: 'rgba(255,255,255,0.6)',
+  lineHeight: 1.5,
+};
+
+function HintBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: '0.72rem',
+        color: 'rgba(255,255,255,0.38)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Navigation({ currentIndex, total, canPrev, canNext, onPrev, onNext, onJump }: Props) {
   return (
     <div
@@ -18,12 +47,29 @@ export default function Navigation({ currentIndex, total, canPrev, canNext, onPr
         gap: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 14,
+        padding: '12px 20px',
         background: 'rgba(255,255,255,.02)',
         borderTop: '1px solid var(--line)',
         zIndex: 2,
       }}
     >
+      {/* Usage hint — left side */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          gap: 14,
+          flexWrap: 'wrap',
+        }}
+      >
+        <HintBadge>
+          <kbd style={kbdStyle}>←</kbd><kbd style={kbdStyle}>→</kbd> 換頁
+        </HintBadge>
+        <HintBadge>
+          <kbd style={kbdStyle}>/</kbd> 發訊息
+        </HintBadge>
+      </div>
+
       <button
         onClick={onPrev}
         disabled={!canPrev}

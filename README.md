@@ -16,6 +16,8 @@ English documentation · 繁體中文請見 [README.zh-TW.md](./README.zh-TW.md)
   - **Shared cursor** — every participant's mouse cursor streams live to other participants and the admin
 - **Real-time sync** — Firebase Realtime Database powers presence, slides, click counts, cursors, and quiz answers
 - **Live quizzes** — multiple-choice slides collect each participant's answer; the admin dashboard shows the live distribution and per-user correctness
+- **Live chat** — press `/` anywhere to open a message input; messages stream in real time to all participants and the admin
+- **Like leaderboard** — floating panel showing all participants ranked by click count (❤️ reactions); auto-hides when there are no users
 
 ## Tech Stack
 
@@ -130,7 +132,10 @@ sharing-presentation/
 │   ├── SlideViewer.tsx                  # Slide rendering core
 │   ├── Navigation.tsx                   # Prev/next + progress
 │   ├── CursorOverlay.tsx                # Shared cursor layer
-│   └── BubbleEffect.tsx                 # Click feedback effect
+│   ├── BubbleEffect.tsx                 # Click feedback effect
+│   ├── ChatInput.tsx                   # Chat message input (press / to open)
+│   ├── ChatMessagePanel.tsx            # Floating message panel with auto-hide
+│   └── LikeLeaderboard.tsx             # Floating click-count leaderboard
 ├── lib/
 │   ├── firebase.ts                      # Firebase initialization
 │   ├── hooks.ts                         # useRoom, useAdminSlideControl, ...

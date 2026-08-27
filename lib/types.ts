@@ -20,6 +20,15 @@ export interface QuizAnswer {
   at: number;
 }
 
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  userColor: string;
+  text: string;
+  at: number;
+}
+
 /**
  * Each content-bearing field on a slide is a pair of `front` (audience-facing
  * text) and `back` (presenter/admin-facing notes). The two share the SAME

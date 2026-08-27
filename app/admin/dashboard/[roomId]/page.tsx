@@ -4,8 +4,9 @@ import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import SlideViewer from '@/components/SlideViewer';
 import { SLIDES } from '@/lib/slides-data';
-import { useRoom, useAdminSlideControl, usePyramidReset, useLocalSlideChangeNotifier } from '@/lib/hooks';
-import { setPyramidLit, setCursorVisible } from '@/lib/firebase';
+import { useRoom, useAdminSlideControl, usePyramidReset, useLocalSlideChangeNotifier, useChatMessages } from '@/lib/hooks';
+import { setPyramidLit, setCursorVisible, kickUser, clearChatMessages } from '@/lib/firebase';
+import ChatMessagePanel from '@/components/ChatMessagePanel';
 import type { User, QuizAnswer } from '@/lib/types';
 import Link from 'next/link';
 
@@ -54,6 +55,7 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   const { room, loading } = useRoom(authChecked ? roomId : null);
+  const messages = useChatMessages(authChecked ? roomId : null);
   const forceSlide = useAdminSlideControl(roomId);
   const remoteCurrentSlide = room?.currentSlide ?? 0;
 
@@ -106,6 +108,35 @@ export default function AdminDashboardPage() {
     },
     [roomId]
   );
+
+  // Admin: kick a single user out of the room. Removes the user node; the
+  // targeted client detects its own disappearance (see useKickDetection in
+  // the presenter page) and logs out.
+  const handleKick = useCallback(
+    (userId: string, userName: string) => {
+      const ok = window.confirm(`確定要踢出「${userName}」嗎？`);
+      if (!ok) return;
+      kickUser(roomId, userId).catch((err) =>
+        console.error('Failed to kick user', err)
+      );
+    },
+    [roomId]
+  );
+
+  // Admin: kick everyone. Useful at the end of a session to reset the room
+  // without nuking the room-wide state (current slide, pyramid, etc.).
+  const handleKickAll = useCallback(() => {
+    if (users.length === 0) return;
+    const ok = window.confirm(
+      `確定要踢出全部 ${users.length} 位使用者？他們需要重新輸入名字才能再進來。`
+    );
+    if (!ok) return;
+    users.forEach((u) => {
+      kickUser(roomId, u.id).catch((err) =>
+        console.error('Failed to kick user', u.id, err)
+      );
+    });
+  }, [roomId, users]);
 
   // Quiz answers: latest entry per user, sorted by recency
   const quizStats = useMemo(() => {
@@ -167,6 +198,40 @@ export default function AdminDashboardPage() {
             👥 <b style={{ color: 'var(--accent)' }}>{users.length}</b> 人在線 ·
             <b style={{ color: 'var(--accent)' }}> {totalClicks}</b> 次點擊
           </span>
+          {users.length > 0 && (
+            <button
+              onClick={handleKickAll}
+              title="把全部線上使用者踢出"
+              style={{
+                background: 'var(--card)',
+                border: '1px solid var(--line)',
+                color: 'var(--bad, #ff6b6b)',
+                borderRadius: 8,
+                padding: '6px 12px',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              🚫 全部踢出
+            </button>
+          )}
+          <button
+            onClick={() => clearChatMessages(roomId).catch(console.error)}
+            title="清空聊天室"
+            style={{
+              background: 'var(--card)',
+              border: '1px solid var(--line)',
+              color: 'var(--muted)',
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            🗑 清空聊天
+          </button>
           <Link
             href="/admin"
             style={{ color: 'var(--muted)', fontSize: '0.85rem', textDecoration: 'underline' }}
@@ -258,6 +323,31 @@ export default function AdminDashboardPage() {
                       )}
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleKick(u.id, u.name)}
+                    title={`踢出 ${u.name}`}
+                    aria-label={`踢出 ${u.name}`}
+                    style={{
+                      flexShrink: 0,
+                      background: 'transparent',
+                      border: '1px solid var(--line)',
+                      color: 'var(--bad, #ff6b6b)',
+                      borderRadius: 6,
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      lineHeight: 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 107, 107, .15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    踢出
+                  </button>
                 </div>
               );
             })}
@@ -368,6 +458,7 @@ export default function AdminDashboardPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              position: 'relative', // anchor for ChatMessagePanel (absolute)
             }}
           >
             <div
@@ -389,6 +480,10 @@ export default function AdminDashboardPage() {
                 onPyramidLight={handlePyramidLight}
               />
             </div>
+
+            {/* Chat panel — anchored to the top-right of the slide area,
+                not the full viewport, so it stays inside the slide bounds. */}
+            <ChatMessagePanel messages={messages} variant="absolute" />
           </div>
 
           {/* Quiz answers panel - only shown on the quiz slide */}

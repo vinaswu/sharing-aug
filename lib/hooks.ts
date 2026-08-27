@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { onValue, ref, off } from 'firebase/database';
 import { database } from './firebase';
-import type { Room, User, QuizAnswer } from './types';
-import { ensureRoom, joinRoom, leaveRoom, updateUserState, updateCurrentSlide, incrementClickCount, recordQuizAnswer, setPyramidLit } from './firebase';
+import type { Room, User, QuizAnswer, ChatMessage } from './types';
+import { ensureRoom, joinRoom, leaveRoom, updateUserState, updateCurrentSlide, incrementClickCount, recordQuizAnswer, setPyramidLit, subscribeChatMessages } from './firebase';
 
 /**
  * Normalize the quizAnswers field from RTDB into a QuizAnswer[].
@@ -270,4 +270,119 @@ export function useLocalSlideChangeNotifier(
     },
     [setLocalSlide]
   );
+}
+
+/**
+ * Auto-logout when the user has left the site for more than `timeoutMs`.
+ *
+ * Log out (remove user from room) if the tab has been hidden for `timeoutMs`.
+ *
+ * "Away" = tab hidden (visibilitychange → document.hidden).
+ * We do NOT react to window blur/focus — clicking another window while the
+ * tab stays visible should NOT trigger a kick.
+ *
+ * Returning to the tab within the timeout cancels the timer.
+ * Browser-closed case: JS cannot run timers after the tab dies, so the
+ * server-side `leaveRoom` on the next mount already cleans up stale presence.
+ */
+export function useAwayLogout(timeoutMs: number, onAway: () => void) {
+  const onAwayRef = useRef(onAway);
+  onAwayRef.current = onAway;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        onAwayRef.current();
+      }, timeoutMs);
+    };
+
+    const disarm = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) arm();
+      else disarm();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      disarm();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [timeoutMs]);
+}
+
+/**
+ * Detect that the current user has been forcibly removed from the room
+ * (e.g. admin clicked the "kick" button).
+ *
+ * Subscribes directly to `rooms/{roomId}/users/{userId}`. When the snapshot
+ * transitions from defined → null while the room itself still exists, we
+ * call `onKicked` exactly once.
+ *
+ * Why a dedicated subscription instead of reading `useRoom().users`:
+ *   - `useRoom` is already used to drive UI, but adding a derived
+ *     "am I still here?" check there mixes responsibilities and risks
+ *     false positives during the join/leave race window.
+ *   - Watching the single node gives a tight, low-latency signal.
+ */
+export function useKickDetection(
+  roomId: string | null,
+  userId: string,
+  onKicked: () => void
+) {
+  const onKickedRef = useRef(onKicked);
+  onKickedRef.current = onKicked;
+
+  // Guard: only fire once per mount. Even if RTDB glitches and the snapshot
+  // temporarily reads null (e.g. mid-restore), we don't want a logout loop.
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (!roomId || !userId) return;
+    if (typeof window === 'undefined') return;
+
+    firedRef.current = false;
+    const nodeRef = ref(database, `rooms/${roomId}/users/${userId}`);
+
+    const unsubscribe = onValue(nodeRef, (snap) => {
+      if (firedRef.current) return;
+      if (!snap.exists()) {
+        firedRef.current = true;
+        onKickedRef.current();
+      }
+    });
+
+    return () => {
+      firedRef.current = true; // prevent firing during unmount/cleanup
+      unsubscribe();
+      off(nodeRef);
+    };
+  }, [roomId, userId]);
+}
+
+/**
+ * Subscribe to chat messages in a room. Returns the list sorted by time asc.
+ * Cleans up the subscription on unmount.
+ */
+export function useChatMessages(roomId: string | null) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  useEffect(() => {
+    if (!roomId) return;
+    const unsubscribe = subscribeChatMessages(roomId, setMessages);
+    return unsubscribe;
+  }, [roomId]);
+
+  return messages;
 }
