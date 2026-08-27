@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- 所有幻灯片添加 storytelling 风格的讲者讲稿：每页包含开场提示、停顿指示、互动点建议（`lib/slides-data.ts`）
+
+### Changed
+- Navigation 组件布局优化：键盘快捷键提示移至左侧，上下页按钮与页码点居中显示
+- SlideViewer 讲稿面板增强格式化：支持标题高亮、箭头要点、数字列表样式（`components/SlideViewer.tsx`）
+
+### Added
 - Real-time cursor sharing: admins and participants see each other's mouse cursors live
 - Interactive multiple-choice questions with live tallying: the admin dashboard shows per-question answer distribution and per-user correctness
 - Mini-pyramid synchronized node lighting: when the admin lights a node, every participant sees the matching node light up at the same instant

@@ -154,6 +154,7 @@ The deck covers *The Pyramid Principle*, Chapter 3:
 - What is the Pyramid Principle?
 - **Top-down in 5 steps**: Subject → Question → Answer → SCQA opening → Key Lines
 - A short "two baristas" story illustrating the contrast
+- **Beginner tips**: common pitfalls and how to avoid them
 - Interactive multiple-choice questions with live tallies
 - A "mini pyramid" with synchronized lighting (the admin lights up a node and every participant sees it glow at the same time)
 - Wrap-up

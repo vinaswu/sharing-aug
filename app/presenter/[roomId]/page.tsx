@@ -203,6 +203,7 @@ export default function PresenterPage() {
           justifyContent: 'center',
           padding: '32px 32px 56px',
           position: 'relative',
+          gap: 24,
         }}
       >
         <div style={{ position: 'relative', zIndex: 1 }}>

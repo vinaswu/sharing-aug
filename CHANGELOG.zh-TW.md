@@ -9,6 +9,13 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 ## [未發佈] · Unreleased
 
 ### 新增
+- 所有簡報頁添加 storytelling 風格的講者講稿：每頁包含開場提示、停頓指示、互動點建議（`lib/slides-data.ts`）
+
+### 修改
+- Navigation 元件佈局優化：鍵盤快捷鍵提示移至左側，上下頁按鈕與頁碼點居中顯示
+- SlideViewer 講稿面板增強格式化：支援標題高亮、箭頭要點、數字列表樣式（`components/SlideViewer.tsx`）
+
+### 新增
 - 即時游標共享：管理員與學員可即時看到彼此的滑鼠游標
 - 互動選擇題與即時統計：管理員後台可看到每題的作答分布與個人答對／答錯
 - 迷你金字塔節點同步點燈：管理員亮燈 → 全體學員同步看到對應節點亮起

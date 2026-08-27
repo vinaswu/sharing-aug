@@ -136,7 +136,6 @@ function ScriptPanel({ text }: { text: string }) {
         fontSize: '0.88rem',
         lineHeight: 1.7,
         color: 'var(--ink)',
-        whiteSpace: 'pre-wrap',
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
       }}
     >
@@ -146,13 +145,84 @@ function ScriptPanel({ text }: { text: string }) {
           letterSpacing: '0.12em',
           color: 'var(--accent)',
           fontWeight: 700,
-          marginBottom: 8,
+          marginBottom: 12,
           fontFamily: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
         }}
       >
-        講者讀稿
+        <span>📝</span> 講者讀稿
       </div>
-      {text}
+      {text.split('\n').map((line, i) => {
+        // Section headers like 【標題】
+        if (line.startsWith('【') && line.endsWith('】')) {
+          return (
+            <div
+              key={i}
+              style={{
+                fontWeight: 700,
+                color: 'var(--accent)',
+                marginTop: 14,
+                marginBottom: 6,
+                fontSize: '0.92rem',
+                fontFamily: 'inherit',
+                borderBottom: '1px solid var(--line)',
+                paddingBottom: 4,
+              }}
+            >
+              {line}
+            </div>
+          );
+        }
+        // Bullet points like →
+        if (line.startsWith('→')) {
+          return (
+            <div
+              key={i}
+              style={{
+                marginLeft: 8,
+                marginBottom: 4,
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ color: 'var(--accent)', marginRight: 6 }}>→</span>
+              {line.slice(1)}
+            </div>
+          );
+        }
+        // Numbered items like 1. 2.
+        if (/^\d+\.\s/.test(line)) {
+          return (
+            <div
+              key={i}
+              style={{
+                marginLeft: 8,
+                marginBottom: 4,
+                fontFamily: 'inherit',
+              }}
+            >
+              {line}
+            </div>
+          );
+        }
+        // Empty lines
+        if (line.trim() === '') {
+          return <div key={i} style={{ height: 6 }} />;
+        }
+        // Regular text
+        return (
+          <div
+            key={i}
+            style={{
+              fontFamily: 'inherit',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {line}
+          </div>
+        );
+      })}
     </aside>
   );
 }
@@ -187,7 +257,7 @@ function renderSlide(
           <p style={{ fontSize: '1.12rem', color: 'var(--muted)', lineHeight: 1.8 }}>
             一個顧問花了三十年才學會的說話方式——
             <br />
-            今天用八分鐘，講給你聽。
+            今天用一個杯麵的時間，講給你聽。
           </p>
         </div>
       );
