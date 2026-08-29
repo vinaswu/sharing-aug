@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Slide, SlideBlock, SlideBackground } from '@/lib/types';
-import SlideViewer from './SlideViewer';
+import SlideViewer, { blockStyleToProps, absolutePosStyle } from './SlideViewer';
 import { SLIDES } from '@/lib/slides-data';
 
 // ---------------------------------------------------------------------------
@@ -33,6 +33,17 @@ function blankBlock(type: SlideBlock['type']): SlideBlock {
     return { ...base, front: '<p>HTML 內容…</p>', back: '<p>HTML 內容…</p>' };
   }
   return { ...base, front: '文字內容…', back: '文字內容…' };
+}
+
+/** Put a block into free (absolute) mode at a starting position. */
+function makeAbsolute(b: SlideBlock, x = 8, y = 8): SlideBlock {
+  return {
+    ...b,
+    layout: 'absolute',
+    pos: b.pos ?? { x, y, unit: 'percent' },
+    width: b.width || '40%',
+    zIndex: b.zIndex ?? 1,
+  };
 }
 
 /** Convert a legacy (type-based) slide into an element-style slide with blocks. */
@@ -212,6 +223,42 @@ function BackgroundEditor({
           placeholder="https://… 或 /images/bg.jpg"
         />
       </Field>
+      {current.image && (
+        <>
+          <Field label="圖片尺寸（background-size）">
+            <select
+              value={current.size || 'cover'}
+              onChange={(e) => onChange({ ...current, size: e.target.value })}
+              style={inputStyle}
+            >
+              <option value="cover">cover（填滿裁切）</option>
+              <option value="contain">contain（完整顯示）</option>
+              <option value="auto">auto（原始尺寸）</option>
+              <option value="100% 100%">100% 100%（拉伸）</option>
+            </select>
+          </Field>
+          <Field label="圖片位置（background-position）">
+            <input
+              value={current.position || ''}
+              onChange={(e) => onChange({ ...current, position: e.target.value })}
+              style={inputStyle}
+              placeholder="center / center top / 20% 30%"
+            />
+          </Field>
+          <Field label="圖片平鋪（background-repeat）">
+            <select
+              value={current.repeat || 'no-repeat'}
+              onChange={(e) => onChange({ ...current, repeat: e.target.value })}
+              style={inputStyle}
+            >
+              <option value="no-repeat">不平鋪</option>
+              <option value="repeat">水平垂直平鋪</option>
+              <option value="repeat-x">水平平鋪</option>
+              <option value="repeat-y">垂直平鋪</option>
+            </select>
+          </Field>
+        </>
+      )}
       <Field label="圖片遮罩（overlay）">
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
@@ -230,6 +277,24 @@ function BackgroundEditor({
           </button>
         </div>
       </Field>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Field label="圓角">
+          <input
+            value={current.radius || ''}
+            onChange={(e) => onChange({ ...current, radius: e.target.value })}
+            style={inputStyle}
+            placeholder="12px"
+          />
+        </Field>
+        <Field label="內距">
+          <input
+            value={current.padding || ''}
+            onChange={(e) => onChange({ ...current, padding: e.target.value })}
+            style={inputStyle}
+            placeholder="28px 32px"
+          />
+        </Field>
+      </div>
       {(current.color || current.image) && (
         <button type="button" onClick={() => onChange({})} style={smallBtnStyle('var(--bad)')}>
           清除背景
@@ -321,6 +386,425 @@ function BlockEditor({
 }
 
 // ---------------------------------------------------------------------------
+// Full block controls (style + layout panel)
+// ---------------------------------------------------------------------------
+
+function SelectCtl({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <select value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+        <option value="">（預設）</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+
+function BlockControls({
+  block,
+  onChange,
+}: {
+  block: SlideBlock;
+  onChange: (b: SlideBlock) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const s2 = block.style2 ?? {};
+  const setS2 = (patch: Partial<SlideBlock['style2']>) =>
+    onChange({ ...block, style2: { ...s2, ...patch } as SlideBlock['style2'] });
+
+  const isAbs = block.layout === 'absolute';
+  const pos = block.pos ?? { x: 8, y: 8, unit: 'percent' as const };
+  const setPos = (patch: Partial<SlideBlock['pos']>) =>
+    onChange({ ...block, pos: { ...pos, ...patch } });
+
+  return (
+    <div style={{ border: '1px solid var(--line)', borderRadius: 8, marginBottom: 10, background: 'rgba(0,0,0,.15)', overflow: 'hidden' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'none',
+          border: 'none',
+          color: 'var(--ink)',
+          cursor: 'pointer',
+          padding: '9px 12px',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          fontFamily: 'inherit',
+        }}
+      >
+        <span>{open ? '▾' : '▸'}</span> 样式與位置
+        <span style={{ flex: 1 }} />
+        <span style={{ fontWeight: 400, fontSize: '0.7rem', color: 'var(--muted)' }}>
+          {isAbs ? `絕對定位 (${Math.round(pos.x)}, ${Math.round(pos.y)})` : '順序排列'}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '4px 12px 12px' }}>
+          {/* ---- Layout mode ---- */}
+          <Field label="排列模式">
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => onChange({ ...block, layout: 'flow' })}
+                style={smallBtnStyle(!isAbs ? 'var(--accent)' : 'var(--line)')}
+              >
+                ☰ 順序排列
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange(makeAbsolute(block))}
+                style={smallBtnStyle(isAbs ? 'var(--accent)' : 'var(--line)')}
+              >
+                ✛ 自由拖動
+              </button>
+            </div>
+          </Field>
+
+          {isAbs && (
+            <>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Field label="X">
+                  <input
+                    type="number"
+                    value={Math.round(pos.x * 10) / 10}
+                    onChange={(e) => setPos({ x: Number(e.target.value) || 0 })}
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="Y">
+                  <input
+                    type="number"
+                    value={Math.round(pos.y * 10) / 10}
+                    onChange={(e) => setPos({ y: Number(e.target.value) || 0 })}
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="單位">
+                  <select
+                    value={pos.unit || 'percent'}
+                    onChange={(e) => setPos({ unit: e.target.value as 'percent' | 'px' })}
+                    style={inputStyle}
+                  >
+                    <option value="percent">%</option>
+                    <option value="px">px</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="快速對齊">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {[
+                    { l: '↖ 左上', x: 4, y: 4 },
+                    { l: '↑ 上中', x: 25, y: 4 },
+                    { l: '↗ 右上', x: 60, y: 4 },
+                    { l: '← 左', x: 4, y: 40 },
+                    { l: '◎ 置中', x: 25, y: 38 },
+                    { l: '→ 右', x: 60, y: 40 },
+                    { l: '↙ 左下', x: 4, y: 76 },
+                    { l: '↓ 下中', x: 25, y: 76 },
+                    { l: '↘ 右下', x: 60, y: 76 },
+                  ].map((p) => (
+                    <button key={p.l} type="button" onClick={() => setPos({ x: p.x, y: p.y })} style={miniBtnStyle(false)}>
+                      {p.l}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Field label="寬度">
+                  <input value={block.width || ''} onChange={(e) => onChange({ ...block, width: e.target.value })} style={inputStyle} placeholder="40% / 320px" />
+                </Field>
+                <Field label="高度">
+                  <input value={block.height || ''} onChange={(e) => onChange({ ...block, height: e.target.value })} style={inputStyle} placeholder="auto / 200px" />
+                </Field>
+                <Field label="層級 z">
+                  <input
+                    type="number"
+                    value={block.zIndex ?? 1}
+                    onChange={(e) => onChange({ ...block, zIndex: Number(e.target.value) || 1 })}
+                    style={inputStyle}
+                  />
+                </Field>
+              </div>
+            </>
+          )}
+          {!isAbs && (
+            <Field label="寬度（順序排列時）">
+              <input value={block.width || ''} onChange={(e) => onChange({ ...block, width: e.target.value })} style={inputStyle} placeholder="100%" />
+            </Field>
+          )}
+
+          {/* ---- Typography ---- */}
+          <div style={{ ...labelStyle, margin: '14px 0 8px', borderTop: '1px dashed var(--line)', paddingTop: 12 }}>文字樣式</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Field label="字級">
+              <input value={s2.fontSize || ''} onChange={(e) => setS2({ fontSize: e.target.value })} style={inputStyle} placeholder="1.5rem / 24px" />
+            </Field>
+            <SelectCtl
+              label="字重"
+              value={s2.fontWeight || ''}
+              onChange={(v) => setS2({ fontWeight: v || undefined })}
+              options={[
+                { value: '300', label: '細 300' },
+                { value: '400', label: '常规 400' },
+                { value: '600', label: '半粗 600' },
+                { value: '700', label: '粗 700' },
+                { value: '900', label: '特粗 900' },
+              ]}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Field label="顏色">
+              <div style={{ display: 'flex', gap: 4 }}>
+                <input
+                  type="color"
+                  value={s2.color && s2.color.startsWith('#') ? s2.color : '#ffffff'}
+                  onChange={(e) => setS2({ color: e.target.value })}
+                  style={{ width: 36, height: 34, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                />
+                <input value={s2.color || ''} onChange={(e) => setS2({ color: e.target.value })} style={{ ...inputStyle, flex: 1 }} placeholder="var(--ink)" />
+              </div>
+            </Field>
+            <SelectCtl
+              label="對齊"
+              value={s2.textAlign || ''}
+              onChange={(v) => setS2({ textAlign: (v || undefined) as 'left' | 'center' | 'right' | undefined })}
+              options={[
+                { value: 'left', label: '左' },
+                { value: 'center', label: '中' },
+                { value: 'right', label: '右' },
+              ]}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Field label="行高">
+              <input value={s2.lineHeight || ''} onChange={(e) => setS2({ lineHeight: e.target.value })} style={inputStyle} placeholder="1.8" />
+            </Field>
+            <Field label="字距">
+              <input value={s2.letterSpacing || ''} onChange={(e) => setS2({ letterSpacing: e.target.value })} style={inputStyle} placeholder="0.05em" />
+            </Field>
+            <SelectCtl
+              label="大小寫"
+              value={s2.textTransform || ''}
+              onChange={(v) => setS2({ textTransform: (v || undefined) as 'uppercase' | 'capitalize' | undefined })}
+              options={[
+                { value: 'uppercase', label: '全大寫' },
+                { value: 'capitalize', label: '首字母大寫' },
+              ]}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <button type="button" onClick={() => setS2({ fontStyle: s2.fontStyle ? undefined : 'italic' })} style={smallBtnStyle(s2.fontStyle ? 'var(--accent)' : 'var(--line)')}>
+              <i>I</i> 斜體
+            </button>
+            <Field label="透明度">
+              <input
+                type="range" min={0} max={1} step={0.05}
+                value={s2.opacity ?? 1}
+                onChange={(e) => setS2({ opacity: Number(e.target.value) })}
+                style={{ width: 120 }}
+              />
+            </Field>
+          </div>
+          <Field label="文字陰影">
+            <input value={s2.textShadow || ''} onChange={(e) => setS2({ textShadow: e.target.value })} style={inputStyle} placeholder="0 2px 8px rgba(0,0,0,.8)" />
+          </Field>
+
+          {/* ---- Box ---- */}
+          <div style={{ ...labelStyle, margin: '14px 0 8px', borderTop: '1px dashed var(--line)', paddingTop: 12 }}>外框與背景</div>
+          <Field label="背景色">
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                type="color"
+                value={s2.background && s2.background.startsWith('#') ? s2.background : '#3a4155'}
+                onChange={(e) => setS2({ background: e.target.value })}
+                style={{ width: 36, height: 34, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <input value={s2.background || ''} onChange={(e) => setS2({ background: e.target.value })} style={{ ...inputStyle, flex: 1 }} placeholder="rgba(0,0,0,.4)" />
+            </div>
+          </Field>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Field label="邊框">
+              <input value={s2.border || ''} onChange={(e) => setS2({ border: e.target.value })} style={inputStyle} placeholder="1px solid var(--line)" />
+            </Field>
+            <Field label="圓角">
+              <input value={s2.borderRadius || ''} onChange={(e) => setS2({ borderRadius: e.target.value })} style={inputStyle} placeholder="8px" />
+            </Field>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Field label="內距">
+              <input value={s2.padding || ''} onChange={(e) => setS2({ padding: e.target.value })} style={inputStyle} placeholder="12px 16px" />
+            </Field>
+            <Field label="陰影">
+              <input value={s2.boxShadow || ''} onChange={(e) => setS2({ boxShadow: e.target.value })} style={inputStyle} placeholder="0 4px 16px rgba(0,0,0,.4)" />
+            </Field>
+          </div>
+          <Field label="旋轉 / 變形（transform）">
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={s2.transform || ''} onChange={(e) => setS2({ transform: e.target.value })} style={{ ...inputStyle, flex: 1 }} placeholder="rotate(-3deg)" />
+              <button type="button" onClick={() => setS2({ transform: 'rotate(-3deg)' })} style={miniBtnStyle(false)} title="左傾 3 度">-3°</button>
+              <button type="button" onClick={() => setS2({ transform: 'rotate(3deg)' })} style={miniBtnStyle(false)} title="右傾 3 度">+3°</button>
+            </div>
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Edit canvas — drag surface for absolutely positioned blocks
+// ---------------------------------------------------------------------------
+
+function renderBlockPreview(b: SlideBlock, mode: 'front' | 'back') {
+  const content = mode === 'back' ? b.back : b.front;
+  const base = blockStyleToProps(b);
+  if (b.type === 'image') {
+    return b.src ? (
+      <img
+        src={b.src}
+        alt={b.alt || ''}
+        draggable={false}
+        style={{ ...base, width: '100%', height: b.height || undefined, borderRadius: (base.borderRadius as string) || 8, display: 'block' }}
+      />
+    ) : (
+      <div style={{ ...base, border: '1px dashed var(--line)', borderRadius: 8, padding: '18px 12px', textAlign: 'center', color: 'var(--muted)', fontSize: '0.8rem' }}>
+        （請填入圖片 URL）
+      </div>
+    );
+  }
+  if (b.type === 'html') {
+    return (
+      <div
+        style={{
+          ...(b.style2 || b.style ? base : { borderLeft: '4px solid var(--accent)', padding: '10px 14px' }),
+          wordBreak: 'break-word',
+        }}
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    );
+  }
+  return (
+    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, fontSize: '1.05rem', color: 'var(--ink)', wordBreak: 'break-word', ...base }}>
+      {content || '（空文字）'}
+    </div>
+  );
+}
+
+function EditCanvas({
+  slide,
+  previewMode,
+  selectedBlock,
+  dragging,
+  onSelectBlock,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: {
+  slide: Slide;
+  previewMode: 'front' | 'back';
+  selectedBlock: string | null;
+  dragging: string | null;
+  onSelectBlock: (id: string) => void;
+  onPointerDown: (e: React.PointerEvent, slideId: string, block: SlideBlock) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
+}) {
+  const bg = slide.background;
+  const surfaceStyle: React.CSSProperties = {
+    position: 'relative',
+    minHeight: 420,
+    borderRadius: bg?.radius || 12,
+    padding: bg?.padding || '28px 32px',
+    border: '1px solid var(--line)',
+    overflow: 'hidden',
+  };
+  if (bg?.image) {
+    surfaceStyle.backgroundImage = bg.overlay
+      ? `linear-gradient(${bg.overlay}, ${bg.overlay}), url(${bg.image})`
+      : `url(${bg.image})`;
+    surfaceStyle.backgroundSize = bg.size || 'cover';
+    surfaceStyle.backgroundPosition = bg.position || 'center';
+    surfaceStyle.backgroundRepeat = (bg.repeat || 'no-repeat') as React.CSSProperties['backgroundRepeat'];
+  } else if (bg?.color) {
+    surfaceStyle.background = bg.color;
+  } else {
+    surfaceStyle.background = 'var(--card)';
+  }
+
+  const flow = (slide.blocks ?? []).filter((b) => b.layout !== 'absolute');
+  const abs = (slide.blocks ?? []).filter((b) => b.layout === 'absolute');
+
+  const wrapStyle = (b: SlideBlock, isAbs: boolean): React.CSSProperties => {
+    const isDrag = dragging === b.id;
+    const s: React.CSSProperties = isAbs
+      ? { ...absolutePosStyle(b), cursor: isDrag ? 'grabbing' : 'grab', touchAction: 'none' as const }
+      : { position: 'relative', marginBottom: 18 };
+    return s;
+  };
+
+  const ringStyle = (): React.CSSProperties => {
+    return {
+      outline: 'var(--accent) solid 2px',
+      outlineOffset: 3,
+      borderRadius: 4,
+    };
+  };
+  const idleRing: React.CSSProperties = { outline: '1px dashed rgba(128,128,128,.35)', outlineOffset: 3, borderRadius: 4 };
+
+  return (
+    <div style={surfaceStyle} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}>
+      {flow.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {flow.map((b) => (
+            <div
+              key={b.id}
+              style={wrapStyle(b, false)}
+              onClick={(e) => { e.stopPropagation(); onSelectBlock(b.id); }}
+            >
+              <div style={selectedBlock === b.id ? ringStyle() : idleRing}>{renderBlockPreview(b, previewMode)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {abs.map((b) => (
+        <div
+          key={b.id}
+          style={wrapStyle(b, true)}
+          onPointerDown={(e) => onPointerDown(e, slide.id, b)}
+          onClick={(e) => { e.stopPropagation(); onSelectBlock(b.id); }}
+        >
+          <div style={selectedBlock === b.id ? ringStyle() : idleRing}>
+            {renderBlockPreview(b, previewMode)}
+            {selectedBlock === b.id && (
+              <div style={{ position: 'absolute', top: -10, right: -10, display: 'flex', gap: 2, alignItems: 'center', background: 'var(--accent)', color: '#1a1205', fontSize: '0.62rem', fontWeight: 700, borderRadius: 6, padding: '2px 6px', pointerEvents: 'none' }}>
+                ✛ {Math.round(b.pos?.x ?? 0)}% , {Math.round(b.pos?.y ?? 0)}%
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Builder component
 // ---------------------------------------------------------------------------
 
@@ -333,9 +817,22 @@ interface Props {
 export default function SlideBuilder({ roomId, slides, onSave }: Props) {
   const [draft, setDraft] = useState<Slide[]>(slides);
   const [selectedId, setSelectedId] = useState<string | null>(slides[0]?.id ?? null);
+  const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<'front' | 'back'>('front');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
+
+  // --- Drag state for free-placement canvas ---
+  const dragState = useRef<{
+    blockId: string;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    rect: DOMRect;
+  } | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
 
   // Keep draft in sync when the remote deck changes (e.g. first load).
   const remoteKey = useMemo(() => slides.map((s) => `${s.id}:${s.order}`).join(','), [slides]);
@@ -398,13 +895,15 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
   // --- Block operations ------------------------------------------------
 
   const addBlock = (slideId: string, type: SlideBlock['type']) => {
+    const b = blankBlock(type);
     setDraft((d) =>
       d.map((s) => {
         if (s.id !== slideId) return s;
         const blocks = s.blocks ?? [];
-        return { ...s, blocks: [...blocks, blankBlock(type)] };
+        return { ...s, blocks: [...blocks, b] };
       })
     );
+    setSelectedBlock(b.id);
     setDirty(true);
   };
 
@@ -425,7 +924,92 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
         return { ...s, blocks: (s.blocks ?? []).filter((b) => b.id !== blockId) };
       })
     );
+    if (selectedBlock === blockId) setSelectedBlock(null);
     setDirty(true);
+  };
+
+  /** Toggle a block between flow and free (absolute) placement. */
+  const toggleBlockAbsolute = (slideId: string, blockId: string) => {
+    setDraft((d) =>
+      d.map((s) => {
+        if (s.id !== slideId) return s;
+        return {
+          ...s,
+          blocks: (s.blocks ?? []).map((b) => {
+            if (b.id !== blockId) return b;
+            return b.layout === 'absolute' ? { ...b, layout: 'flow' as const } : makeAbsolute(b);
+          }),
+        };
+      })
+    );
+    setDirty(true);
+  };
+
+  // --- Pointer drag for absolutely positioned blocks -----------------------
+  const onBlockPointerDown = (e: React.PointerEvent, slideId: string, block: SlideBlock) => {
+    if (block.layout !== 'absolute') return;
+    if ((e.target as HTMLElement).closest('input,textarea,select,button')) return;
+    const surface = (e.currentTarget as HTMLElement).parentElement;
+    if (!surface) return;
+    e.preventDefault();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
+    dragState.current = {
+      blockId: block.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: block.pos?.x ?? 8,
+      origY: block.pos?.y ?? 8,
+      rect: surface.getBoundingClientRect(),
+    };
+    setDragging(block.id);
+    setSelectedBlock(block.id);
+  };
+
+  const onBlockPointerMove = (e: React.PointerEvent) => {
+    const d = dragState.current;
+    if (!d) return;
+    const dxPct = ((e.clientX - d.startX) / d.rect.width) * 100;
+    const dyPct = ((e.clientY - d.startY) / d.rect.height) * 100;
+    let nx = d.origX + dxPct;
+    let ny = d.origY + dyPct;
+    // Snap to edges/center within ±2%.
+    [0, 50, 100].forEach((g) => {
+      if (Math.abs(nx - g) < 2) nx = g;
+      if (Math.abs(ny - g) < 2) ny = g;
+    });
+    nx = Math.max(-10, Math.min(110, nx));
+    ny = Math.max(-10, Math.min(110, ny));
+    setDraft((prev) =>
+      prev.map((s) =>
+        (s.blocks ?? []).some((b) => b.id === d.blockId)
+          ? {
+              ...s,
+              blocks: s.blocks!.map((b) =>
+                b.id === d.blockId
+                  ? { ...b, pos: { ...b.pos!, x: Math.round(nx * 10) / 10, y: Math.round(ny * 10) / 10 } }
+                  : b
+              ),
+            }
+          : s
+      )
+    );
+    setDirty(true);
+  };
+
+  const onBlockPointerUp = (e: React.PointerEvent) => {
+    if (dragState.current) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      dragState.current = null;
+      setDragging(null);
+    }
   };
 
   const moveBlock = (slideId: string, blockId: string, dir: -1 | 1) => {
@@ -599,10 +1183,27 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
           </div>
         </aside>
 
-        {/* Center: canvas */}
-        <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        {/* Center: canvas (free-placement drag surface) */}
+        <main
+          style={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 28 }}
+          onClick={() => setSelectedBlock(null)}
+        >
           {selected ? (
-            <SlideViewer slide={selected} slideNumber={draft.indexOf(selected)} totalSlides={draft.length} mode="front" />
+            <div style={{ width: '100%', maxWidth: 860 }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 6, textAlign: 'center' }}>
+                ✛ 絕對定位的元素可直接以滑鼠拖曳（自動吸附邊界/中心）
+              </div>
+              <EditCanvas
+                slide={selected}
+                previewMode={previewMode}
+                selectedBlock={selectedBlock}
+                dragging={dragging}
+                onSelectBlock={setSelectedBlock}
+                onPointerDown={onBlockPointerDown}
+                onPointerMove={onBlockPointerMove}
+                onPointerUp={onBlockPointerUp}
+              />
+            </div>
           ) : (
             <div style={{ color: 'var(--muted)', fontSize: '0.95rem' }}>選擇或新增一張投影片開始編輯</div>
           )}
@@ -624,7 +1225,33 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <b style={{ fontSize: '0.95rem' }}>🎨 屬性</b>
                 <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>#{selected.id.slice(-4)}</span>
+                <span style={{ flex: 1 }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: 'var(--muted)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={previewMode === 'back'} onChange={(e) => setPreviewMode(e.target.checked ? 'back' : 'front')} />
+                  預覽背面
+                </label>
               </div>
+
+              {/* Quick-select chips */}
+              {(selected.blocks ?? []).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+                  {(selected.blocks ?? []).map((b, bi) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setSelectedBlock(b.id)}
+                      style={{
+                        ...miniBtnStyle(false),
+                        background: selectedBlock === b.id ? 'var(--accent)' : 'var(--bg)',
+                        color: selectedBlock === b.id ? '#1a1205' : 'var(--ink)',
+                      }}
+                      title={`元素 ${bi + 1}`}
+                    >
+                      {bi + 1}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Background */}
               <BackgroundEditor bg={selected.background} onChange={(bg) => updateSlide(selected.id, { background: bg })} />
@@ -638,20 +1265,36 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
               </div>
 
               {(selected.blocks ?? []).map((b, bi) => (
-                <div key={b.id} style={{ marginBottom: 10 }}>
+                <div
+                  key={b.id}
+                  style={{
+                    marginBottom: 10,
+                    border: `1px solid ${selectedBlock === b.id ? 'var(--accent)' : 'var(--line)'}`,
+                    borderRadius: 10,
+                    padding: 10,
+                    background: selectedBlock === b.id ? 'rgba(255,209,102,.06)' : 'transparent',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>#{bi + 1}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 700 }}>#{bi + 1}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>{b.type === 'image' ? '圖片' : b.type === 'html' ? 'HTML' : '文字'}</span>
+                    {b.layout === 'absolute' && <span style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>✛ 自由</span>}
+                    <span style={{ flex: 1 }} />
+                    <button type="button" onClick={() => toggleBlockAbsolute(selected.id, b.id)} style={miniBtnStyle(false)} title={b.layout === 'absolute' ? '改回順序排列' : '設為自由拖動'}>
+                      ✛
+                    </button>
                     <button type="button" onClick={() => moveBlock(selected.id, b.id, -1)} disabled={bi === 0} style={miniBtnStyle(bi === 0)} title="上移">↑</button>
                     <button type="button" onClick={() => moveBlock(selected.id, b.id, 1)} disabled={bi === (selected.blocks ?? []).length - 1} style={miniBtnStyle(bi === (selected.blocks ?? []).length - 1)} title="下移">↓</button>
                     <button type="button" onClick={() => deleteBlock(selected.id, b.id)} style={miniBtnStyle(false, 'var(--bad)')} title="刪除元素">✕</button>
                   </div>
                   <BlockEditor block={b} onChange={(nb) => updateBlock(selected.id, b.id, nb)} />
+                  <BlockControls block={b} onChange={(nb) => updateBlock(selected.id, b.id, nb)} />
                 </div>
               ))}
 
               {(selected.blocks ?? []).length === 0 && (
                 <p style={{ color: 'var(--muted)', fontSize: '0.8rem', textAlign: 'center', padding: 12 }}>
-                  尚無元素 — 從上方新增
+                  尚無元素 — 從上方新增（文字／HTML／圖片）
                 </p>
               )}
             </>

@@ -10,6 +10,8 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 
 ### 新增
 - Slide Builder 視覺化投影片編輯器：管理員後台一鍵開啟（`/admin/builder/[roomId]`），Elementor 式元素編輯，支援文字／HTML／圖片三種區塊，每個區塊皆有「前台／後台」兩面內容，並可設定每頁背景色、背景圖與覆蓋色（`components/SlideBuilder.tsx`、`app/admin/builder/[roomId]/page.tsx`）
+- Builder 自由拖動畫布：元素可設為「自由定位」（absolute），在畫布上以滑鼠直接拖曳擺放，自動吸附邊界／中心（±2%），即時顯示座標標籤；絕對位置以百分比儲存，任何螢幕尺寸下版面一致（`layout`／`pos` 欄位，`EditCanvas` 元件）
+- Builder 完整元素控制列：每個元素可調 X／Y／寬／高、層級（z-index）、不透明度、圓角、邊框、背景色、陰影、內距、字體大小／粗細／顏色／行高／字距／對齊，以及圖片 object-fit；背景面板新增背景圖 size／position／repeat、圓角與內距（`style2`／`BlockControls` 元件）
 - 自訂投影片即時同步：Builder 產出的投影片存於 RTDB `rooms/{roomId}/customSlides`，前台學員與後台即時接收並取代內建簡報；刪除該節點即恢復內建投影片（`lib/customSlides.ts`、`useCustomSlides` hook）
 - 舊版投影片一鍵轉換：既有 type-based 投影片可轉為 blocks 元素式編輯，轉換後仍保留原有版式相容性（`SlideViewer` 偵測 `blocks` 時改用元素渲染）
 - 所有簡報頁添加 storytelling 風格的講者講稿：每頁包含開場提示、停頓指示、互動點建議（`lib/slides-data.ts`）

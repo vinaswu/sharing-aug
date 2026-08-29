@@ -49,6 +49,50 @@ export interface SlideBackground {
    * Use an rgba() value for transparency, e.g. 'rgba(15,17,21,0.6)'.
    */
   overlay?: string;
+  /** Background-size CSS, used when `image` is set (default 'cover'). */
+  size?: string;
+  /** Background-position CSS, e.g. 'center top' (default 'center'). */
+  position?: string;
+  /** Repeat CSS for the background image (default 'no-repeat'). */
+  repeat?: string;
+  /** Optional rounded corners, e.g. '12px'. */
+  radius?: string;
+  /** Inner padding, e.g. '28px 32px'. */
+  padding?: string;
+}
+
+/**
+ * Absolute positioning for a block on the canvas. Percentages are relative to
+ * the slide surface; pixels are absolute. When `layout === 'flow'` (or x/y are
+ * absent) blocks stack vertically like before.
+ */
+export interface BlockPosition {
+  x: number;
+  y: number;
+  /** 'percent' (default) = % of slide width/height; 'px' = pixels. */
+  unit?: 'percent' | 'px';
+}
+
+/** Typography + box styling shared by text/html/image blocks. */
+export interface BlockStyle {
+  fontSize?: string;
+  fontWeight?: string;
+  fontStyle?: 'italic';
+  color?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  lineHeight?: string;
+  letterSpacing?: string;
+  textTransform?: 'uppercase' | 'capitalize';
+  /** text-shadow value, e.g. '0 2px 8px rgba(0,0,0,.8)'. */
+  textShadow?: string;
+  background?: string;
+  border?: string;
+  borderRadius?: string;
+  padding?: string;
+  boxShadow?: string;
+  opacity?: number;
+  /** CSS transform, e.g. 'rotate(-3deg)'. */
+  transform?: string;
 }
 
 /**
@@ -68,6 +112,18 @@ export interface SlideBlock {
   alt?: string;
   /** For image blocks: CSS width, e.g. '320px' or '50%'. */
   width?: string;
+  /** CSS height (absolute layout), e.g. '200px' or '40%'. */
+  height?: string;
+  /** Extra inline CSS appended to the rendered element. */
+  style?: string;
+  /** 'absolute' = free placement on the slide (Builder); default = 'flow'. */
+  layout?: 'flow' | 'absolute';
+  /** Absolute position (used when layout === 'absolute'). */
+  pos?: BlockPosition;
+  /** Stacking order among blocks. */
+  zIndex?: number;
+  /** Typography/box styling applied to the rendered element. */
+  style2?: BlockStyle;
   front: string;
   back: string;
 }

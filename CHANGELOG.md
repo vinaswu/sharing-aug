@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Slide Builder: visual slide editor opened from the admin dashboard (`/admin/builder/[roomId]`) — Elementor-style editing with text / HTML / image blocks, each block carrying separate front (audience) and back (presenter) content, plus per-slide background color, image, and tint overlay (`components/SlideBuilder.tsx`, `app/admin/builder/[roomId]/page.tsx`)
+- Builder free-drag canvas: any block can switch to "absolute" placement and be dragged directly on the canvas with edge/center snapping (±2%) and a live coordinate badge; positions persist as percentages so layouts hold at any screen size (`layout`/`pos` fields, `EditCanvas` component)
+- Builder full element controls: every block gets X/Y/width/height, z-index, opacity, border radius, border, background, shadow, padding, font size/weight/color/line-height/letter-spacing/alignment, and image object-fit; background panel gains image size/position/repeat plus radius/padding (`style2` / `BlockControls` component)
 - Real-time custom slides: Builder output is stored under RTDB `rooms/{roomId}/customSlides`; participants and the dashboard receive it live and it replaces the built-in deck. Deleting the node reverts to the built-in slides (`lib/customSlides.ts`, `useCustomSlides` hook)
 - One-click legacy conversion: existing type-based slides can be converted into element-style blocks for editing, while SlideViewer keeps full backward compatibility with the legacy layout (renders `blocks` when present)
 - Storytelling-style presenter scripts on every slide: opening cues, pause markers, and interaction suggestions per page (`lib/slides-data.ts`)

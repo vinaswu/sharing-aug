@@ -139,13 +139,14 @@ export default function SlideViewer({
 function buildBackgroundStyle(bg?: SlideBackground): React.CSSProperties {
   if (!bg) return {};
   const style: React.CSSProperties = {
-    borderRadius: 12,
-    padding: '28px 32px',
+    borderRadius: bg.radius || 12,
+    padding: bg.padding || '28px 32px',
   };
   if (bg.image) {
     style.backgroundImage = `url(${bg.image})`;
-    style.backgroundSize = 'cover';
-    style.backgroundPosition = 'center';
+    style.backgroundSize = bg.size || 'cover';
+    style.backgroundPosition = bg.position || 'center';
+    style.backgroundRepeat = bg.repeat || 'no-repeat';
   }
   if (bg.color && !bg.image) {
     style.background = bg.color;
@@ -163,56 +164,124 @@ function buildBackgroundStyle(bg?: SlideBackground): React.CSSProperties {
   return style;
 }
 
+/** Merge a BlockStyle object + inline CSS string into a React style object. */
+export function blockStyleToProps(b: SlideBlock): React.CSSProperties {
+  const s2 = b.style2;
+  const style: React.CSSProperties = {};
+  if (s2) {
+    if (s2.fontSize) style.fontSize = s2.fontSize;
+    if (s2.fontWeight) style.fontWeight = Number(s2.fontWeight) || (s2.fontWeight as any);
+    if (s2.fontStyle) style.fontStyle = s2.fontStyle;
+    if (s2.color) style.color = s2.color;
+    if (s2.textAlign) style.textAlign = s2.textAlign;
+    if (s2.lineHeight) style.lineHeight = s2.lineHeight;
+    if (s2.letterSpacing) style.letterSpacing = s2.letterSpacing;
+    if (s2.textTransform) style.textTransform = s2.textTransform;
+    if (s2.textShadow) style.textShadow = s2.textShadow;
+    if (s2.background) style.background = s2.background;
+    if (s2.border) style.border = s2.border;
+    if (s2.borderRadius) style.borderRadius = s2.borderRadius;
+    if (s2.padding) style.padding = s2.padding;
+    if (s2.boxShadow) style.boxShadow = s2.boxShadow;
+    if (typeof s2.opacity === 'number') style.opacity = s2.opacity;
+    if (s2.transform) style.transform = s2.transform;
+  }
+  if (b.style) {
+    // Parse the legacy inline "key: value; key: value" string.
+    b.style.split(';').forEach((decl) => {
+      const idx = decl.indexOf(':');
+      if (idx < 0) return;
+      const key = decl.slice(0, idx).trim();
+      const val = decl.slice(idx + 1).trim();
+      if (!key || !val) return;
+      const camel = key.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      (style as any)[camel] = val;
+    });
+  }
+  return style;
+}
+
+/** CSS for absolutely positioned blocks. */
+export function absolutePosStyle(b: SlideBlock): React.CSSProperties {
+  if (b.layout !== 'absolute' || !b.pos) return { position: 'relative' };
+  const u = b.pos.unit === 'px' ? 'px' : '%';
+  return {
+    position: 'absolute',
+    left: `${b.pos.x}${u}`,
+    top: `${b.pos.y}${u}`,
+    width: b.width || undefined,
+    height: b.height || undefined,
+    zIndex: b.zIndex ?? 1,
+  };
+}
+
 /**
  * Render a list of element-style blocks (the Builder's output). Each block
- * picks its front/back content based on `mode`.
+ * picks its front/back content based on `mode`. Blocks with `layout:
+ * 'absolute'` are positioned freely on the slide surface; the rest stack
+ * vertically in a flow column.
  */
 function BlockList({ blocks, mode }: { blocks: SlideBlock[]; mode: 'front' | 'back' }) {
+  const flow = blocks.filter((b) => b.layout !== 'absolute');
+  const abs = blocks.filter((b) => b.layout === 'absolute');
+
+  const renderOne = (b: SlideBlock) => {
+    const content = mode === 'back' ? b.back : b.front;
+    const base = blockStyleToProps(b);
+    if (b.type === 'image') {
+      return (
+        <img
+          src={b.src}
+          alt={b.alt || ''}
+          style={{
+            ...base,
+            width: b.width || '100%',
+            height: b.height || undefined,
+            maxWidth: '100%',
+            borderRadius: (base.borderRadius as string) || 8,
+            display: 'block',
+          }}
+        />
+      );
+    }
+    if (b.type === 'html') {
+      return (
+        <div
+          className={b.style2 || b.style ? undefined : 'story-box'}
+          style={b.style2 || b.style ? base : { ...base, borderLeft: '4px solid var(--accent)' }}
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      );
+    }
+    // text
+    return (
+      <div
+        style={{
+          whiteSpace: 'pre-wrap',
+          lineHeight: 1.8,
+          fontSize: '1.05rem',
+          color: 'var(--ink)',
+          ...base,
+        }}
+      >
+        {content}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {blocks.map((b) => {
-        const content = mode === 'back' ? b.back : b.front;
-        if (b.type === 'image') {
-          return (
-            <img
-              key={b.id}
-              src={b.src}
-              alt={b.alt || ''}
-              style={{
-                width: b.width || '100%',
-                maxWidth: '100%',
-                borderRadius: 8,
-                display: 'block',
-              }}
-            />
-          );
-        }
-        if (b.type === 'html') {
-          return (
-            <div
-              key={b.id}
-              className="story-box"
-              style={{ borderLeft: '4px solid var(--accent)' }}
-              dangerouslySetInnerHTML={{ __html: content }}
-            />
-          );
-        }
-        // text
-        return (
-          <div
-            key={b.id}
-            style={{
-              whiteSpace: 'pre-wrap',
-              lineHeight: 1.8,
-              fontSize: '1.05rem',
-              color: 'var(--ink)',
-            }}
-          >
-            {content}
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {flow.map((b) => (
+          <div key={b.id}>{renderOne(b)}</div>
+        ))}
+      </div>
+      {abs.map((b) => (
+        <div key={b.id} style={absolutePosStyle(b)}>
+          {renderOne(b)}
+        </div>
+      ))}
+    </>
   );
 }
 
