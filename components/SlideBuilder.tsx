@@ -46,6 +46,15 @@ function makeAbsolute(b: SlideBlock, x = 8, y = 8): SlideBlock {
   };
 }
 
+/**
+ * Deep-copy the built-in deck so editing it never mutates the SLIDES constant,
+ * and give every slide fresh ids (the builder keys React state by id).
+ */
+function cloneBuiltInDeck(): Slide[] {
+  const copy: Slide[] = JSON.parse(JSON.stringify(SLIDES));
+  return copy.map((s) => ({ ...s, id: newId() }));
+}
+
 /** Convert a legacy (type-based) slide into an element-style slide with blocks. */
 function legacyToBlocks(slide: Slide): Slide[] {
   const blocks: SlideBlock[] = [];
@@ -748,8 +757,12 @@ function EditCanvas({
     surfaceStyle.background = 'var(--card)';
   }
 
-  const flow = (slide.blocks ?? []).filter((b) => b.layout !== 'absolute');
-  const abs = (slide.blocks ?? []).filter((b) => b.layout === 'absolute');
+  const blocks = slide.blocks ?? [];
+  const flow = blocks.filter((b) => b.layout !== 'absolute');
+  const abs = blocks.filter((b) => b.layout === 'absolute');
+  // Built-in (legacy) slides carry no `blocks` — the edit canvas would be a
+  // blank card. Render a read-only preview of the legacy content instead.
+  const isLegacy = blocks.length === 0;
 
   const wrapStyle = (b: SlideBlock, isAbs: boolean): React.CSSProperties => {
     const isDrag = dragging === b.id;
@@ -770,6 +783,31 @@ function EditCanvas({
 
   return (
     <div style={surfaceStyle} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}>
+      {isLegacy ? (
+        <div style={{ position: 'relative' }}>
+          <div style={{ pointerEvents: 'none' }}>
+            <SlideViewer slide={slide} slideNumber={0} totalSlides={0} mode={previewMode} />
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              zIndex: 5,
+              background: 'var(--accent)',
+              color: '#1a1205',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              borderRadius: 6,
+              padding: '3px 10px',
+              pointerEvents: 'none',
+            }}
+          >
+            內建頁面 · 唯讀預覽（按「匯入內建簡報」后可编辑）
+          </div>
+        </div>
+      ) : (
+      <>
       {flow.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {flow.map((b) => (
@@ -800,6 +838,8 @@ function EditCanvas({
           </div>
         </div>
       ))}
+      </>
+      )}
     </div>
   );
 }

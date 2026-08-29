@@ -32,6 +32,7 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 - 「使用 SCQA 時的 4 個重點」講者讀稿由完整 PDF 內容簡化為 13 行重點速覽（保留自檢句、公式、數據、例示）
 
 ### 修復
+- 修正 Builder 中間畫布對內建（legacy）投影片顯示全黑的問題：無 `blocks` 的頁面改為以 SlideViewer 唯讀預覽實際內容，並顯示「內建頁面 · 唯讀預覽」提示（`EditCanvas` 元件）
 - 修正 AdminDashboardPage 出現的 `Each child in a list should have a unique "key" prop` 警告
 - 修正被踢出偵測（`useKickDetection`）的誤判登出：初始快照尚未寫入時不再觸發登出，只有在用戶曾上線後節點消失才判定為被踢
 
