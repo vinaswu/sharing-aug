@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import SlideViewer from '@/components/SlideViewer';
 import { SLIDES } from '@/lib/slides-data';
-import { useRoom, useAdminSlideControl, usePyramidReset, useLocalSlideChangeNotifier, useChatMessages } from '@/lib/hooks';
+import { useRoom, useAdminSlideControl, usePyramidReset, useLocalSlideChangeNotifier, useChatMessages, useCustomSlides } from '@/lib/hooks';
 import { setPyramidLit, setCursorVisible, kickUser, clearChatMessages } from '@/lib/firebase';
 import ChatMessagePanel from '@/components/ChatMessagePanel';
 import type { User, QuizAnswer } from '@/lib/types';
@@ -56,6 +56,8 @@ export default function AdminDashboardPage() {
 
   const { room, loading } = useRoom(authChecked ? roomId : null);
   const messages = useChatMessages(authChecked ? roomId : null);
+  const customSlides = useCustomSlides(authChecked ? roomId : null);
+  const slides = customSlides ?? SLIDES;
   const forceSlide = useAdminSlideControl(roomId);
   const remoteCurrentSlide = room?.currentSlide ?? 0;
 
@@ -78,7 +80,7 @@ export default function AdminDashboardPage() {
   );
 
   const currentSlideIndex = room?.currentSlide ?? 0;
-  const currentSlide = SLIDES[currentSlideIndex] || SLIDES[0];
+  const currentSlide = slides[currentSlideIndex] || slides[0];
   const totalClicks = useMemo(
     () => users.reduce((sum, u) => sum + (Number(u.clickCount) || 0), 0),
     [users]
@@ -150,11 +152,11 @@ export default function AdminDashboardPage() {
   const emitSlideChange = useLocalSlideChangeNotifier(() => {});
   const goTo = useCallback(
     (i: number) => {
-      if (i < 0 || i >= SLIDES.length) return;
+      if (i < 0 || i >= slides.length) return;
       emitSlideChange(i);
       forceSlide(i);
     },
-    [emitSlideChange, forceSlide]
+    [emitSlideChange, forceSlide, slides.length]
   );
 
   if (!authChecked || loading) {
@@ -192,6 +194,21 @@ export default function AdminDashboardPage() {
           <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>房間：{roomId}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Link
+            href={`/admin/builder/${roomId}`}
+            title="開啟 Slide Builder 建立 / 修改投影片"
+            style={{
+              background: 'var(--accent)',
+              color: '#1a1205',
+              borderRadius: 8,
+              padding: '6px 14px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            🧱 Builder
+          </Link>
           {/* Cursor visibility toggle */}
           <CursorToggle visible={cursorVisible} onChange={handleCursorToggle} />
           <span style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
@@ -429,7 +446,7 @@ export default function AdminDashboardPage() {
             }}
           >
             <h2 style={{ fontSize: '0.95rem', color: 'var(--accent)', letterSpacing: '0.1em' }}>
-              目前播放：第 {currentSlideIndex + 1} 頁 / 共 {SLIDES.length} 頁
+              目前播放：第 {currentSlideIndex + 1} 頁 / 共 {slides.length} 頁
             </h2>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -441,8 +458,8 @@ export default function AdminDashboardPage() {
               </button>
               <button
                 onClick={() => goTo(currentSlideIndex + 1)}
-                disabled={currentSlideIndex >= SLIDES.length - 1}
-                style={btnStyle(currentSlideIndex < SLIDES.length - 1)}
+                disabled={currentSlideIndex >= slides.length - 1}
+                style={btnStyle(currentSlideIndex < slides.length - 1)}
               >
                 下一頁 →
               </button>
@@ -474,7 +491,7 @@ export default function AdminDashboardPage() {
               <SlideViewer
                 slide={currentSlide}
                 slideNumber={currentSlideIndex}
-                totalSlides={SLIDES.length}
+                totalSlides={slides.length}
                 mode="back"
                 remoteCursors={remoteCursors}
                 onPyramidLight={handlePyramidLight}
@@ -620,7 +637,7 @@ export default function AdminDashboardPage() {
                 gap: 8,
               }}
             >
-              {SLIDES.map((s, i) => (
+              {slides.map((s, i) => (
                 <button
                   key={s.id}
                   onClick={() => goTo(i)}

@@ -10,13 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- 所有幻灯片添加 storytelling 风格的讲者讲稿：每页包含开场提示、停顿指示、互动点建议（`lib/slides-data.ts`）
-
-### Changed
-- Navigation 组件布局优化：键盘快捷键提示移至左侧，上下页按钮与页码点居中显示
-- SlideViewer 讲稿面板增强格式化：支持标题高亮、箭头要点、数字列表样式（`components/SlideViewer.tsx`）
-
-### Added
+- Slide Builder: visual slide editor opened from the admin dashboard (`/admin/builder/[roomId]`) — Elementor-style editing with text / HTML / image blocks, each block carrying separate front (audience) and back (presenter) content, plus per-slide background color, image, and tint overlay (`components/SlideBuilder.tsx`, `app/admin/builder/[roomId]/page.tsx`)
+- Real-time custom slides: Builder output is stored under RTDB `rooms/{roomId}/customSlides`; participants and the dashboard receive it live and it replaces the built-in deck. Deleting the node reverts to the built-in slides (`lib/customSlides.ts`, `useCustomSlides` hook)
+- One-click legacy conversion: existing type-based slides can be converted into element-style blocks for editing, while SlideViewer keeps full backward compatibility with the legacy layout (renders `blocks` when present)
+- Storytelling-style presenter scripts on every slide: opening cues, pause markers, and interaction suggestions per page (`lib/slides-data.ts`)
 - Real-time cursor sharing: admins and participants see each other's mouse cursors live
 - Interactive multiple-choice questions with live tallying: the admin dashboard shows per-question answer distribution and per-user correctness
 - Mini-pyramid synchronized node lighting: when the admin lights a node, every participant sees the matching node light up at the same instant
@@ -25,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Sticky presenter script panel on the dashboard: when a slide has a `script.back`, a scrollable teleprompter card sticks to the right of the slide on the back view only (audience never sees it)
 
 ### Changed
+- Navigation component layout: keyboard shortcut hints moved to the left, prev/next buttons and page dots centered
+- SlideViewer script panel formatting enhanced: heading highlights, arrow bullets, and numbered-list styling (`components/SlideViewer.tsx`)
+- Dashboard and participant page now resolve slides dynamically via `customSlides ?? SLIDES` — total page count, navigation bounds, and page dots all follow the active deck
 - Slide 5, step 2 title changed from "設想讀者的問題" to "設想問題的核心"
 - Replaced `<>...</>` with a keyed `<Fragment>` in `app/admin/dashboard/[roomId]/page.tsx` to silence the React list-key warning
 - Participant bottom-right watermark trimmed from "BY 918 VINAS, 以TENIX ENGINE 製作" to "BY 918 VINAS WU"
@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - `Each child in a list should have a unique "key" prop` warning emitted by AdminDashboardPage
+- Kick detection (`useKickDetection`) no longer logs users out on a transient initial-null snapshot; the kick now only fires when a user who was present disappears from RTDB
 
 ## [0.1.0] · 2026-08-26
 

@@ -10,7 +10,7 @@ import LikeLeaderboard from '@/components/LikeLeaderboard';
 import ChatInput from '@/components/ChatInput';
 import ChatMessagePanel from '@/components/ChatMessagePanel';
 import { SLIDES } from '@/lib/slides-data';
-import { useRoom, useRoomPresence, useUserSlideIndex, useCursorBroadcast, useGlobalClickTracker, useQuizAnswer, useHeartbeat, usePyramidReset, useLocalSlideChangeNotifier, useAwayLogout, useKickDetection, useChatMessages } from '@/lib/hooks';
+import { useRoom, useRoomPresence, useUserSlideIndex, useCursorBroadcast, useGlobalClickTracker, useQuizAnswer, useHeartbeat, usePyramidReset, useLocalSlideChangeNotifier, useAwayLogout, useKickDetection, useChatMessages, useCustomSlides } from '@/lib/hooks';
 import type { User, QuizAnswer } from '@/lib/types';
 import Link from 'next/link';
 
@@ -73,6 +73,10 @@ export default function PresenterPage() {
   // Subscribe to room state
   const { room } = useRoom(roomId);
 
+  // Admin-built slides take priority over the built-in deck.
+  const customSlides = useCustomSlides(roomId);
+  const slides = customSlides ?? SLIDES;
+
   // Sync local slide with room's current slide (admin-controlled)
   useEffect(() => {
     if (room) {
@@ -110,13 +114,13 @@ export default function PresenterPage() {
   }, [localSlide, goTo]);
 
   const goNext = useCallback(() => {
-    if (localSlide < SLIDES.length - 1) goTo(localSlide + 1);
-  }, [localSlide, goTo]);
+    if (localSlide < slides.length - 1) goTo(localSlide + 1);
+  }, [localSlide, goTo, slides.length]);
 
   // Keyboard nav
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'ArrowRight' || e.key === ' ') {
+      if (e.key === 'ArrowRight') {
         e.preventDefault();
         goNext();
       } else if (e.key === 'ArrowLeft') {
@@ -145,7 +149,7 @@ export default function PresenterPage() {
   );
 
   // Always normalize slide index (admin could change total)
-  const currentSlide = SLIDES[localSlide] || SLIDES[0];
+  const currentSlide = slides[localSlide] || slides[0];
   const onlineCount = useMemo(() => Object.keys(room?.users || {}).length, [room]);
 
   if (!user) {
@@ -210,7 +214,7 @@ export default function PresenterPage() {
           <SlideViewer
             slide={currentSlide}
             slideNumber={localSlide}
-            totalSlides={SLIDES.length}
+            totalSlides={slides.length}
             mode="front"
             onQuizSelect={handleQuizSelect}
             pyramidLit={room?.pyramidLit}
@@ -220,9 +224,9 @@ export default function PresenterPage() {
 
       <Navigation
         currentIndex={localSlide}
-        total={SLIDES.length}
+        total={slides.length}
         canPrev={localSlide > 0}
-        canNext={localSlide < SLIDES.length - 1}
+        canNext={localSlide < slides.length - 1}
         onPrev={goPrev}
         onNext={goNext}
         onJump={(i) => goTo(i)}

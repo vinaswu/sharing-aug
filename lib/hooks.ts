@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { onValue, ref, off } from 'firebase/database';
 import { database } from './firebase';
-import type { Room, User, QuizAnswer, ChatMessage } from './types';
+import type { Room, User, QuizAnswer, ChatMessage, Slide } from './types';
 import { ensureRoom, joinRoom, leaveRoom, updateUserState, updateCurrentSlide, incrementClickCount, recordQuizAnswer, setPyramidLit, subscribeChatMessages } from './firebase';
+import { subscribeCustomSlides } from './customSlides';
 
 /**
  * Normalize the quizAnswers field from RTDB into a QuizAnswer[].
@@ -344,20 +345,26 @@ export function useKickDetection(
   const onKickedRef = useRef(onKicked);
   onKickedRef.current = onKicked;
 
-  // Guard: only fire once per mount. Even if RTDB glitches and the snapshot
-  // temporarily reads null (e.g. mid-restore), we don't want a logout loop.
+  // Wait for the initial snapshot to confirm the user is present. The join
+  // write and this subscription start together, so an initial null is normal.
+  const hasBeenPresentRef = useRef(false);
   const firedRef = useRef(false);
 
   useEffect(() => {
     if (!roomId || !userId) return;
     if (typeof window === 'undefined') return;
 
+    hasBeenPresentRef.current = false;
     firedRef.current = false;
     const nodeRef = ref(database, `rooms/${roomId}/users/${userId}`);
 
     const unsubscribe = onValue(nodeRef, (snap) => {
       if (firedRef.current) return;
-      if (!snap.exists()) {
+      if (snap.exists()) {
+        hasBeenPresentRef.current = true;
+        return;
+      }
+      if (hasBeenPresentRef.current) {
         firedRef.current = true;
         onKickedRef.current();
       }
@@ -385,4 +392,20 @@ export function useChatMessages(roomId: string | null) {
   }, [roomId]);
 
   return messages;
+}
+
+/**
+ * Subscribe to a room's admin-built (custom) slides.
+ * Returns the custom slide list, or null when the room has none (callers
+ * should fall back to the built-in SLIDES constant).
+ */
+export function useCustomSlides(roomId: string | null) {
+  const [slides, setSlides] = useState<Slide[] | null>(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+    return subscribeCustomSlides(roomId, setSlides);
+  }, [roomId]);
+
+  return slides;
 }

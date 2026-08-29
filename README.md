@@ -14,6 +14,7 @@ English documentation · 繁體中文請見 [README.zh-TW.md](./README.zh-TW.md)
   - One-click controls to force everyone to a specific slide
   - Live click-count statistics per participant at the bottom
   - **Shared cursor** — every participant's mouse cursor streams live to other participants and the admin
+- **Slide Builder** — visual, Elementor-style slide editor at `/admin/builder/[roomId]`: text / HTML / image blocks with separate audience and presenter content, per-slide backgrounds, and live sync to every client (delete the RTDB `customSlides` node to revert to the built-in deck)
 - **Real-time sync** — Firebase Realtime Database powers presence, slides, click counts, cursors, and quiz answers
 - **Live quizzes** — multiple-choice slides collect each participant's answer; the admin dashboard shows the live distribution and per-user correctness
 - **Live chat** — press `/` anywhere to open a message input; messages stream in real time to all participants and the admin

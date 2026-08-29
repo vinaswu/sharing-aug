@@ -9,13 +9,10 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 ## [未發佈] · Unreleased
 
 ### 新增
+- Slide Builder 視覺化投影片編輯器：管理員後台一鍵開啟（`/admin/builder/[roomId]`），Elementor 式元素編輯，支援文字／HTML／圖片三種區塊，每個區塊皆有「前台／後台」兩面內容，並可設定每頁背景色、背景圖與覆蓋色（`components/SlideBuilder.tsx`、`app/admin/builder/[roomId]/page.tsx`）
+- 自訂投影片即時同步：Builder 產出的投影片存於 RTDB `rooms/{roomId}/customSlides`，前台學員與後台即時接收並取代內建簡報；刪除該節點即恢復內建投影片（`lib/customSlides.ts`、`useCustomSlides` hook）
+- 舊版投影片一鍵轉換：既有 type-based 投影片可轉為 blocks 元素式編輯，轉換後仍保留原有版式相容性（`SlideViewer` 偵測 `blocks` 時改用元素渲染）
 - 所有簡報頁添加 storytelling 風格的講者講稿：每頁包含開場提示、停頓指示、互動點建議（`lib/slides-data.ts`）
-
-### 修改
-- Navigation 元件佈局優化：鍵盤快捷鍵提示移至左側，上下頁按鈕與頁碼點居中顯示
-- SlideViewer 講稿面板增強格式化：支援標題高亮、箭頭要點、數字列表樣式（`components/SlideViewer.tsx`）
-
-### 新增
 - 即時游標共享：管理員與學員可即時看到彼此的滑鼠游標
 - 互動選擇題與即時統計：管理員後台可看到每題的作答分布與個人答對／答錯
 - 迷你金字塔節點同步點燈：管理員亮燈 → 全體學員同步看到對應節點亮起
@@ -24,6 +21,9 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 - 後台 sticky 講者讀稿面板：當某頁 `script.back` 有內容時，於後台視圖右側顯示可滾動的讀稿欄（前台完全不可見）
 
 ### 修改
+- Navigation 元件佈局優化：鍵盤快捷鍵提示移至左側，上下頁按鈕與頁碼點居中顯示
+- SlideViewer 講稿面板增強格式化：支援標題高亮、箭頭要點、數字列表樣式（`components/SlideViewer.tsx`）
+- 管理員控制台與學員頁改為動態簡報來源：`customSlides ?? SLIDES`，總頁數、切頁邊界與頁碼導覽皆跟隨實際投影片數量
 - 第五張簡報步驟二標題由「設想讀者的問題」改為「設想問題的核心」
 - `app/admin/dashboard/[roomId]/page.tsx` 將 `<>...</>` 改為帶 key 的 `<Fragment>`，消除 React 列表 key 警告
 - 學員頁右下角「BY 918 VINAS, 以TENIX ENGINE 製作」精簡為「BY 918 VINAS WU」
@@ -31,6 +31,7 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 
 ### 修復
 - 修正 AdminDashboardPage 出現的 `Each child in a list should have a unique "key" prop` 警告
+- 修正被踢出偵測（`useKickDetection`）的誤判登出：初始快照尚未寫入時不再觸發登出，只有在用戶曾上線後節點消失才判定為被踢
 
 ## [0.1.0] · 2026-08-26
 

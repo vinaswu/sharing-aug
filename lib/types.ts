@@ -39,8 +39,54 @@ export interface Sided<T> {
   back: T;
 }
 
+export interface SlideBackground {
+  /** CSS color, e.g. '#0f1115' or 'var(--bg)' */
+  color?: string;
+  /** Image URL (absolute http(s) or relative /public path) */
+  image?: string;
+  /**
+   * Overlay color drawn on top of the image to tint/dim it.
+   * Use an rgba() value for transparency, e.g. 'rgba(15,17,21,0.6)'.
+   */
+  overlay?: string;
+}
+
+/**
+ * A single editable element on a slide (Elementor-style).
+ * Each block has front/back content so the audience and presenter can see
+ * different things. `type` controls how the content is rendered:
+ *  - 'text'  → plain text (whiteSpace pre-wrap)
+ *  - 'html'  → raw HTML (dangerouslySetInnerHTML)
+ *  - 'image' → <img> with src / alt / width
+ */
+export interface SlideBlock {
+  id: string;
+  type: 'text' | 'html' | 'image';
+  /** For image blocks: the src URL. Ignored for text/html. */
+  src?: string;
+  /** For image blocks: alt text. */
+  alt?: string;
+  /** For image blocks: CSS width, e.g. '320px' or '50%'. */
+  width?: string;
+  front: string;
+  back: string;
+}
+
 export interface Slide {
   id: string;
+  /**
+   * Position in the deck. Only meaningful for custom (admin-built) slides,
+   * which are stored in RTDB as an unordered map keyed by id. The built-in
+   * SLIDES array relies on array order and leaves this unset.
+   */
+  order?: number;
+  /** Slide background (color / image / overlay). Optional — defaults to transparent. */
+  background?: SlideBackground;
+  /**
+   * Element-style blocks. When present, SlideViewer renders these instead of
+   * the legacy type-specific layout. This is what the Builder edits.
+   */
+  blocks?: SlideBlock[];
   kicker?: Sided<string>;
   title: Sided<string>;
   type: SlideType;

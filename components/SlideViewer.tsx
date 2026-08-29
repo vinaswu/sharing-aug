@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Slide, QuizData, TierData } from '@/lib/types';
+import type { Slide, QuizData, TierData, SlideBlock, SlideBackground } from '@/lib/types';
 import CursorOverlay from './CursorOverlay';
 
 interface CursorData {
@@ -59,6 +59,10 @@ export default function SlideViewer({
   const scriptBack = isBack ? slide.script?.back : '';
   const hasScript = Boolean(scriptBack && scriptBack.trim().length > 0);
 
+  // Element-style slides: when `blocks` is present, render those instead of
+  // the legacy type-specific layout. This is what the Builder produces.
+  const useBlocks = Array.isArray(slide.blocks) && slide.blocks.length > 0;
+
   return (
     <div
       key={slide.id}
@@ -69,6 +73,7 @@ export default function SlideViewer({
         // Subtle visual cue that this is the admin/presenter view.
         borderLeft: isBack ? '3px solid var(--accent)' : '3px solid transparent',
         paddingLeft: isBack ? 14 : 0,
+        ...buildBackgroundStyle(slide.background),
       }}
     >
       {isBack && (
@@ -85,6 +90,7 @@ export default function SlideViewer({
             borderRadius: 4,
             padding: '2px 8px',
             fontWeight: 700,
+            zIndex: 2,
           }}
         >
           後台視圖 · BACK
@@ -97,12 +103,19 @@ export default function SlideViewer({
           gridTemplateColumns: hasScript ? 'minmax(0, 1fr) 280px' : '1fr',
           gap: hasScript ? 20 : 0,
           alignItems: 'start',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div style={{ minWidth: 0 }}>
-          {slide.kicker && <div className="kicker">{pickSide(slide.kicker, mode)}</div>}
-
-          {renderSlide(slide, mode, onQuizSelect, onPyramidLight, pyramidLit)}
+          {useBlocks ? (
+            <BlockList blocks={slide.blocks!} mode={mode} />
+          ) : (
+            <>
+              {slide.kicker && <div className="kicker">{pickSide(slide.kicker, mode)}</div>}
+              {renderSlide(slide, mode, onQuizSelect, onPyramidLight, pyramidLit)}
+            </>
+          )}
 
           <CursorOverlay cursors={remoteCursors || []} />
 
@@ -115,6 +128,90 @@ export default function SlideViewer({
 
         {hasScript && <ScriptPanel text={scriptBack!} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Build the CSS style object for a slide background. Supports a solid color,
+ * a background image, and a tint/dim overlay drawn on top of the image.
+ */
+function buildBackgroundStyle(bg?: SlideBackground): React.CSSProperties {
+  if (!bg) return {};
+  const style: React.CSSProperties = {
+    borderRadius: 12,
+    padding: '28px 32px',
+  };
+  if (bg.image) {
+    style.backgroundImage = `url(${bg.image})`;
+    style.backgroundSize = 'cover';
+    style.backgroundPosition = 'center';
+  }
+  if (bg.color && !bg.image) {
+    style.background = bg.color;
+  }
+  if (bg.overlay) {
+    // Draw the overlay on top of the image (or color) using a pseudo-layer.
+    // We use a box-shadow inset trick is unreliable, so we layer with an
+    // extra backgroundImage entry when an image is present.
+    if (bg.image) {
+      style.backgroundImage = `linear-gradient(${bg.overlay}, ${bg.overlay}), url(${bg.image})`;
+    } else {
+      style.background = bg.color ? `linear-gradient(${bg.overlay}, ${bg.overlay}), ${bg.color}` : bg.overlay;
+    }
+  }
+  return style;
+}
+
+/**
+ * Render a list of element-style blocks (the Builder's output). Each block
+ * picks its front/back content based on `mode`.
+ */
+function BlockList({ blocks, mode }: { blocks: SlideBlock[]; mode: 'front' | 'back' }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {blocks.map((b) => {
+        const content = mode === 'back' ? b.back : b.front;
+        if (b.type === 'image') {
+          return (
+            <img
+              key={b.id}
+              src={b.src}
+              alt={b.alt || ''}
+              style={{
+                width: b.width || '100%',
+                maxWidth: '100%',
+                borderRadius: 8,
+                display: 'block',
+              }}
+            />
+          );
+        }
+        if (b.type === 'html') {
+          return (
+            <div
+              key={b.id}
+              className="story-box"
+              style={{ borderLeft: '4px solid var(--accent)' }}
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          );
+        }
+        // text
+        return (
+          <div
+            key={b.id}
+            style={{
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.8,
+              fontSize: '1.05rem',
+              color: 'var(--ink)',
+            }}
+          >
+            {content}
+          </div>
+        );
+      })}
     </div>
   );
 }
