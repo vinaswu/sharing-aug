@@ -11,7 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Slide Builder: "匯入內建簡報" button to convert the built-in `SLIDES` into editable block structure (`legacyToBlocks()` in `components/SlideBuilder.tsx`)
+  - Imported blocks now carry the same look as the original cover/story layout (kicker styled like an eyebrow, title scaled to 2.8rem for cover / 2.4rem otherwise, cover & takeaway boxes centered with max-width), so the imported deck reads identically to the source
+  - `importBuiltIn()` uses `cloneBuiltInDeck()` so the global `SLIDES` constant stays immutable
 - Slide Builder: "清空" button to clear all slides in the deck
+- Slide Builder: `hasUserEdited` ref + `markDirty()` helper so RTDB echoes don't clobber local edits (`components/SlideBuilder.tsx`)
+- BlockStyle type: optional `maxWidth` / `margin` fields, used by legacy-to-blocks for cover/takeaway centering (`lib/types.ts`, `components/BlockRenderer.tsx`)
 - Cursor rule documenting the project root path (`.cursor/rules/project-root.md`):
   - Declares `sharing-presentation/` as the project root
   - Reminds the assistant to use `sharing-presentation/` as the base path for file operations, commands, and code search — not the surrounding `Sharing_AUG2026/` workspace

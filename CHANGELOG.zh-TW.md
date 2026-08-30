@@ -10,7 +10,11 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 
 ### 新增
 - Slide Builder：「⬇ 匯入內建簡報」按鈕，把內建的 `SLIDES` 轉成可編輯的 block 結構（`legacyToBlocks()` in `components/SlideBuilder.tsx`）
+  - 匯入的 block 帶上原本 cover/story 排版的樣式（kicker 為小字 eyebrow、title 為 2.8rem / 2.4rem 大標、cover / takeaway 內容以 max-width 置中），讓匯入後的 deck 視覺與原版一致
+  - `importBuiltIn()` 使用 `cloneBuiltInDeck()`，確保全域 `SLIDES` 常數不會被竄改
 - Slide Builder：「🗑 清空」按鈕，一鍵清空所有投影片
+- Slide Builder：`hasUserEdited` ref + `markDirty()` helper，避免 RTDB 回傳時覆蓋用戶正在進行的編輯（`components/SlideBuilder.tsx`）
+- BlockStyle 型別新增選填的 `maxWidth` / `margin` 欄位，用於 legacy-to-blocks 產生 cover / takeaway 置中區塊（`lib/types.ts`、`components/BlockRenderer.tsx`）
 - 新增 Cursor 規則說明專案 root 路徑（`.cursor/rules/project-root.md`）：
   - 宣告 `sharing-presentation/` 為本專案 root
   - 提醒 AI 助手以 `sharing-presentation/` 為基準路徑執行讀寫檔案、指令與搜尋等操作，避免回到上層 `Sharing_AUG2026/` 工作區根目錄

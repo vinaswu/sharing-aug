@@ -62,18 +62,57 @@ function legacyToBlocks(slide: Slide): Slide[] {
     blocks.push({ id: newId('b'), type, front, back, ...extra });
   };
 
-  if (slide.kicker) push('text', slide.kicker.front, slide.kicker.back);
-  if (slide.title) push('text', slide.title.front, slide.title.back);
+  // Kicker (small accent text)
+  if (slide.kicker) {
+    push('text', slide.kicker.front, slide.kicker.back, {
+      style2: {
+        color: 'var(--accent)',
+        fontSize: '0.78rem',
+        letterSpacing: '0.25em',
+        textTransform: 'uppercase',
+        fontWeight: '700',
+        marginBottom: 14,
+      },
+    });
+  }
+  // Title (large heading)
+  if (slide.title) {
+    const isCover = slide.type === 'cover';
+    push('text', slide.title.front, slide.title.back, {
+      style2: {
+        fontSize: isCover ? '2.8rem' : '2.4rem',
+        fontWeight: '800',
+        lineHeight: '1.2',
+        marginBottom: 18,
+      },
+    });
+  }
 
   switch (slide.type) {
     case 'cover':
-      if (slide.story) push('html', slide.story.front, slide.story.back);
+      if (slide.story) {
+        push('html', slide.story.front, slide.story.back, {
+          style2: {
+            maxWidth: '600px',
+            margin: '0 auto',
+            textAlign: 'left',
+          },
+        });
+      }
       break;
     case 'story':
       if (slide.story) push('html', slide.story.front, slide.story.back);
       break;
     case 'takeaway':
-      if (slide.takeaway) push('html', slide.takeaway.front, slide.takeaway.back);
+      if (slide.takeaway) {
+        push('html', slide.takeaway.front, slide.takeaway.back, {
+          style2: {
+            maxWidth: '700px',
+            margin: '0 auto',
+            textAlign: 'left',
+          },
+        });
+      }
       break;
     case 'table':
       if (slide.table) {
@@ -866,6 +905,17 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
 
+  // Tracks whether the local draft has been touched since the last remote
+  // sync. The `useEffect` below will refuse to overwrite local edits with a
+  // later RTDB echo once this is true.
+  const hasUserEdited = useRef(false);
+
+  // Single place that flips `hasUserEdited` and marks the deck dirty.
+  const markDirty = useCallback(() => {
+    hasUserEdited.current = true;
+    setDirty(true);
+  }, []);
+
   // --- Drag state for free-placement canvas ---
   const dragState = useRef<{
     blockId: string;
@@ -878,13 +928,17 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
   const [dragging, setDragging] = useState<string | null>(null);
 
   // Keep draft in sync when the remote deck changes (e.g. first load).
+  // `hasUserEdited` (declared above) guards against a later RTDB echo
+  // overwriting in-progress edits.
   const remoteKey = useMemo(() => slides.map((s) => `${s.id}:${s.order}`).join(','), [slides]);
   const lastRemoteKey = useRef(remoteKey);
   useEffect(() => {
     if (remoteKey !== lastRemoteKey.current) {
       lastRemoteKey.current = remoteKey;
-      setDraft(slides);
-      setDirty(false);
+      if (!hasUserEdited.current) {
+        setDraft(slides);
+        setDirty(false);
+      }
     }
   }, [remoteKey, slides]);
 
@@ -896,7 +950,7 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
     const s = blankSlide();
     setDraft((d) => [...d, s]);
     setSelectedId(s.id);
-    setDirty(true);
+    markDirty();
   };
 
   const duplicateSlide = (id: string) => {
@@ -909,13 +963,13 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
       next.splice(idx + 1, 0, copy);
       return next;
     });
-    setDirty(true);
+    markDirty();
   };
 
   const deleteSlide = (id: string) => {
     setDraft((d) => d.filter((s) => s.id !== id));
     if (selectedId === id) setSelectedId(null);
-    setDirty(true);
+    markDirty();
   };
 
   const moveSlide = (id: string, dir: -1 | 1) => {
@@ -927,12 +981,12 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
       [next[idx], next[target]] = [next[target], next[idx]];
       return next;
     });
-    setDirty(true);
+    markDirty();
   };
 
   const updateSlide = (id: string, patch: Partial<Slide>) => {
     setDraft((d) => d.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-    setDirty(true);
+    markDirty();
   };
 
   // --- Block operations ------------------------------------------------
@@ -947,7 +1001,7 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
       })
     );
     setSelectedBlock(b.id);
-    setDirty(true);
+    markDirty();
   };
 
   const updateBlock = (slideId: string, blockId: string, block: SlideBlock) => {
@@ -957,7 +1011,7 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
         return { ...s, blocks: (s.blocks ?? []).map((b) => (b.id === blockId ? block : b)) };
       })
     );
-    setDirty(true);
+    markDirty();
   };
 
   const deleteBlock = (slideId: string, blockId: string) => {
@@ -968,7 +1022,7 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
       })
     );
     if (selectedBlock === blockId) setSelectedBlock(null);
-    setDirty(true);
+    markDirty();
   };
 
   /** Toggle a block between flow and free (absolute) placement. */
@@ -985,7 +1039,7 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
         };
       })
     );
-    setDirty(true);
+    markDirty();
   };
 
   // --- Pointer drag for absolutely positioned blocks -----------------------
@@ -1040,7 +1094,7 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
           : s
       )
     );
-    setDirty(true);
+    markDirty();
   };
 
   const onBlockPointerUp = (e: React.PointerEvent) => {
@@ -1067,24 +1121,29 @@ export default function SlideBuilder({ roomId, slides, onSave }: Props) {
         return { ...s, blocks };
       })
     );
-    setDirty(true);
+    markDirty();
   };
 
   const importBuiltIn = () => {
-    // Convert each built-in slide into element-style blocks.
-    const imported = SLIDES.flatMap((s, i) =>
-      legacyToBlocks({ ...JSON.parse(JSON.stringify(s)), id: newId(), order: i })
-    );
+    // Convert each built-in slide into element-style blocks. `cloneBuiltInDeck`
+    // gives each slide a fresh id (so React keys stay unique) and keeps the
+    // built-in SLIDES array immutable.
+    const imported = cloneBuiltInDeck().map((s, i) => {
+      const converted = legacyToBlocks(s);
+      return { ...converted[0], order: i };
+    });
     setDraft(imported);
     setSelectedId(imported[0]?.id ?? null);
-    setDirty(true);
+    setSelectedBlock(null);
+    markDirty();
   };
 
   const clearAll = () => {
     if (!window.confirm('確定要清空全部自訂投影片？這會讓觀眾端回到內建簡報。')) return;
     setDraft([]);
     setSelectedId(null);
-    setDirty(true);
+    setSelectedBlock(null);
+    markDirty();
   };
 
   const save = async () => {

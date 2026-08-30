@@ -92,6 +92,11 @@ export interface BlockStyle {
   /** Bottom margin in px — used by legacy-to-blocks to replicate the exact
    *  spacing of legacy renderSlide layouts (e.g. 14px kicker→title, 16px title→story). */
   marginBottom?: number;
+  /** Max width, e.g. '600px'. Used by legacy-to-blocks to keep the cover /
+   *  takeaway boxes centered and narrow. */
+  maxWidth?: string;
+  /** margin: '0 auto' or similar. Accept any CSS margin string. */
+  margin?: string;
   boxShadow?: string;
   opacity?: number;
   /** CSS transform, e.g. 'rotate(-3deg)'. */

@@ -24,6 +24,8 @@ export function blockStyleToProps(b: SlideBlock): React.CSSProperties {
     if (s2.borderRadius) style.borderRadius = s2.borderRadius;
     if (s2.padding) style.padding = s2.padding;
     if (s2.marginBottom) style.marginBottom = s2.marginBottom;
+    if (s2.maxWidth) style.maxWidth = s2.maxWidth;
+    if (s2.margin) style.margin = s2.margin;
     if (s2.boxShadow) style.boxShadow = s2.boxShadow;
     if (typeof s2.opacity === 'number') style.opacity = s2.opacity;
     if (s2.transform) style.transform = s2.transform;
