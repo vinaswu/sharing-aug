@@ -69,10 +69,11 @@ export default function SlideViewer({
       className={`animate__animated ${animClass}`}
       style={{
         width: 'min(880px, 92vw)',
+        minHeight: 'min(560px, 70vh)',
         position: 'relative',
-        // Subtle visual cue that this is the admin/presenter view.
-        borderLeft: isBack ? '3px solid var(--accent)' : '3px solid transparent',
-        paddingLeft: isBack ? 14 : 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
         ...buildBackgroundStyle(slide.background),
       }}
     >
@@ -102,9 +103,10 @@ export default function SlideViewer({
           display: 'grid',
           gridTemplateColumns: hasScript ? 'minmax(0, 1fr) 280px' : '1fr',
           gap: hasScript ? 20 : 0,
-          alignItems: 'start',
+          alignItems: 'center',
           position: 'relative',
           zIndex: 1,
+          width: '100%',
         }}
       >
         <div style={{ minWidth: 0 }}>

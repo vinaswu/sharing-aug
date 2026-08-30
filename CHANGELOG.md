@@ -10,6 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Slide Builder: "匯入內建簡報" button to convert the built-in `SLIDES` into editable block structure (`legacyToBlocks()` in `components/SlideBuilder.tsx`)
+- Slide Builder: "清空" button to clear all slides in the deck
+- Cursor rule documenting the project root path (`.cursor/rules/project-root.md`):
+  - Declares `sharing-presentation/` as the project root
+  - Reminds the assistant to use `sharing-presentation/` as the base path for file operations, commands, and code search — not the surrounding `Sharing_AUG2026/` workspace
+  - Lists canonical file locations (rules, `package.json`, `next.config.ts`, `tsconfig.json`, `.env.local.example`)
+
+### Changed
+- Slide Viewer: removed the back-mode-only left border + padding (`borderLeft: '3px solid var(--accent)'`, `paddingLeft: 14`) so the admin preview no longer differs visually from the front-end (`components/SlideViewer.tsx`)
+- Slide Viewer + Block Flow Renderer: slides are now vertically centered (`display: flex; justifyContent: center`, `minHeight: 'min(560px, 70vh)'`) on both admin preview and front-end; the Builder `EditCanvas` matches the same canvas height (`components/SlideViewer.tsx`, `components/BlockRenderer.tsx`, `components/SlideBuilder.tsx`)
+- Slide Builder: `useEffect` no longer overwrites the user's local edits when the RTDB echoes back the same deck — guarded by a `hasUserEdited` flag (`components/SlideBuilder.tsx`)
+- Slide Builder: drag-move on absolute blocks and any block-level mutation also flag the deck as user-edited (`components/SlideBuilder.tsx`)
+
+### Fixed
+- TypeScript build errors: `'lib/types'` → `'@/lib/types'` in `components/BlockRenderer.tsx`; added missing `SlideBlock` import in `lib/customSlides.ts`
+
+### Changed
+- Slide Builder "內建頁面 · 唯讀預覽" badge moved to page bottom (centered), no longer obscuring slide content (`components/SlideBuilder.tsx`)
+
+### Added
+- Cursor workflow rules (`.cursor/rules/strict-instructions.md`):
+  - Pre-work Grill (audit) mechanism
+  - Post-work Code Review + self-testing acceptance workflow
+  - Adversarial UX Review standards
+  - "Summary" trigger to auto-update CHANGELOG / README
+
+### Added
 - Slide Builder: visual slide editor opened from the admin dashboard (`/admin/builder/[roomId]`) — Elementor-style editing with text / HTML / image blocks, each block carrying separate front (audience) and back (presenter) content, plus per-slide background color, image, and tint overlay (`components/SlideBuilder.tsx`, `app/admin/builder/[roomId]/page.tsx`)
 - Builder free-drag canvas: any block can switch to "absolute" placement and be dragged directly on the canvas with edge/center snapping (±2%) and a live coordinate badge; positions persist as percentages so layouts hold at any screen size (`layout`/`pos` fields, `EditCanvas` component)
 - Builder full element controls: every block gets X/Y/width/height, z-index, opacity, border radius, border, background, shadow, padding, font size/weight/color/line-height/letter-spacing/alignment, and image object-fit; background panel gains image size/position/repeat plus radius/padding (`style2` / `BlockControls` component)

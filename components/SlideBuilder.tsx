@@ -738,11 +738,14 @@ function EditCanvas({
   const bg = slide.background;
   const surfaceStyle: React.CSSProperties = {
     position: 'relative',
-    minHeight: 420,
+    minHeight: 'min(560px, 70vh)',
     borderRadius: bg?.radius || 12,
     padding: bg?.padding || '28px 32px',
     border: '1px solid var(--line)',
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
   };
   if (bg?.image) {
     surfaceStyle.backgroundImage = bg.overlay

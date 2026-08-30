@@ -89,6 +89,9 @@ export interface BlockStyle {
   border?: string;
   borderRadius?: string;
   padding?: string;
+  /** Bottom margin in px — used by legacy-to-blocks to replicate the exact
+   *  spacing of legacy renderSlide layouts (e.g. 14px kicker→title, 16px title→story). */
+  marginBottom?: number;
   boxShadow?: string;
   opacity?: number;
   /** CSS transform, e.g. 'rotate(-3deg)'. */

@@ -470,7 +470,7 @@ export default function AdminDashboardPage() {
             style={{
               flex: 1,
               minHeight: 0,
-              overflow: 'hidden',
+              overflow: 'auto',
               padding: '16px 24px',
               display: 'flex',
               alignItems: 'center',
@@ -478,16 +478,7 @@ export default function AdminDashboardPage() {
               position: 'relative', // anchor for ChatMessagePanel (absolute)
             }}
           >
-            <div
-              style={{
-                background: 'transparent',
-                border: 'none',
-                maxWidth: '100%',
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-            >
+            <div style={{ position: 'relative', zIndex: 1 }}>
               <SlideViewer
                 slide={currentSlide}
                 slideNumber={currentSlideIndex}

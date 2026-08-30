@@ -9,6 +9,30 @@ English version: [CHANGELOG.md](./CHANGELOG.md)
 ## [未發佈] · Unreleased
 
 ### 新增
+- Slide Builder：「⬇ 匯入內建簡報」按鈕，把內建的 `SLIDES` 轉成可編輯的 block 結構（`legacyToBlocks()` in `components/SlideBuilder.tsx`）
+- Slide Builder：「🗑 清空」按鈕，一鍵清空所有投影片
+- 新增 Cursor 規則說明專案 root 路徑（`.cursor/rules/project-root.md`）：
+  - 宣告 `sharing-presentation/` 為本專案 root
+  - 提醒 AI 助手以 `sharing-presentation/` 為基準路徑執行讀寫檔案、指令與搜尋等操作，避免回到上層 `Sharing_AUG2026/` 工作區根目錄
+  - 列出常用設定檔位置（`package.json`、`next.config.ts`、`tsconfig.json`、`.env.local.example` 等）以便快速定位
+
+### 修改
+- Slide Viewer：移除只在後台顯示的左側黃色邊框與 padding（`borderLeft: '3px solid var(--accent)'`、`paddingLeft: 14`），讓 admin 預覽與前端視覺一致（`components/SlideViewer.tsx`）
+- Slide Viewer + Block Flow Renderer：admin 預覽與前端現在都垂直置中（`display: flex; justifyContent: center`、`minHeight: 'min(560px, 70vh)'`）；Builder 的 `EditCanvas` 也採用相同畫布高度（`components/SlideViewer.tsx`、`components/BlockRenderer.tsx`、`components/SlideBuilder.tsx`）
+- Slide Builder：當 RTDB 回傳相同資料時，`useEffect` 不再覆蓋用戶的本地編輯，改用 `hasUserEdited` flag 保護（`components/SlideBuilder.tsx`）
+- Slide Builder：拖曳絕對定位 block 以及任何 block 層級的修改都會正確標記為「已編輯」（`components/SlideBuilder.tsx`）
+
+### 修正
+- TypeScript 編譯錯誤：`components/BlockRenderer.tsx` 的 `'lib/types'` 改成 `'@/lib/types'`；`lib/customSlides.ts` 補上遺漏的 `SlideBlock` 型別 import
+
+### 新增
+- 建立 Cursor 工作流程規則（`.cursor/rules/strict-instructions.md`）：
+  - 工作前審判（Grill）機制
+  - 工作後 Code Review + 自行測試驗收流程
+  - UI/UX 對抗式審查標準
+  - 「總結」觸發自動更新 CHANGELOG / README
+
+### 新增
 - Slide Builder 視覺化投影片編輯器：管理員後台一鍵開啟（`/admin/builder/[roomId]`），Elementor 式元素編輯，支援文字／HTML／圖片三種區塊，每個區塊皆有「前台／後台」兩面內容，並可設定每頁背景色、背景圖與覆蓋色（`components/SlideBuilder.tsx`、`app/admin/builder/[roomId]/page.tsx`）
 - Builder 自由拖動畫布：元素可設為「自由定位」（absolute），在畫布上以滑鼠直接拖曳擺放，自動吸附邊界／中心（±2%），即時顯示座標標籤；絕對位置以百分比儲存，任何螢幕尺寸下版面一致（`layout`／`pos` 欄位，`EditCanvas` 元件）
 - Builder 完整元素控制列：每個元素可調 X／Y／寬／高、層級（z-index）、不透明度、圓角、邊框、背景色、陰影、內距、字體大小／粗細／顏色／行高／字距／對齊，以及圖片 object-fit；背景面板新增背景圖 size／position／repeat、圓角與內距（`style2`／`BlockControls` 元件）

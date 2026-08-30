@@ -72,23 +72,44 @@ export default function BuilderPage() {
   }
 
   return (
-    <div style={{ position: 'relative', height: '100vh' }}>
-      {/* Back-to-dashboard link, floating top-RIGHT */}
-      <Link
-        href={`/admin/dashboard/${roomId}`}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {/* Header with back button */}
+      <header
         style={{
-          position: 'absolute',
-          top: 12,
-          right: 14,
-          zIndex: 100,
-          color: 'var(--muted)',
-          fontSize: '0.8rem',
-          textDecoration: 'underline',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          padding: '10px 18px',
+          borderBottom: '1px solid var(--line)',
+          background: 'var(--card)',
+          flexShrink: 0,
+          zIndex: 50,
         }}
       >
-        返回控制台 →
-      </Link>
-      <SlideBuilder roomId={roomId} slides={slides} onSave={handleSave} />
+        <Link
+          href={`/admin/dashboard/${roomId}`}
+          style={{
+            color: 'var(--ink)',
+            fontSize: '0.85rem',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 12px',
+            borderRadius: 6,
+            border: '1px solid var(--line)',
+            background: 'var(--bg)',
+            transition: 'all 0.15s',
+          }}
+        >
+          ← 返回控制台
+        </Link>
+        <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>房間：{roomId}</span>
+      </header>
+
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <SlideBuilder roomId={roomId} slides={slides} onSave={handleSave} />
+      </div>
     </div>
   );
 }

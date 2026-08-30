@@ -5,7 +5,7 @@
 // instead of the hardcoded SLIDES constant. Deleting the node reverts to the
 // built-in deck.
 import { database, ref, set, update, remove, onValue, off } from './firebase';
-import type { Slide } from './types';
+import type { Slide, SlideBlock } from './types';
 
 export function getCustomSlidesRef(roomId: string) {
   return ref(database, `rooms/${roomId}/customSlides`);
@@ -104,13 +104,23 @@ function normalizeSlide(raw: Slide): Slide {
   if (s.blocks && !Array.isArray(s.blocks)) {
     delete s.blocks;
   } else if (Array.isArray(s.blocks)) {
-    s.blocks = s.blocks.map((b) => ({
-      ...b,
-      id: b.id || 'b_' + Math.random().toString(36).slice(2, 9),
-      type: b.type || 'text',
-      front: b.front ?? '',
-      back: b.back ?? '',
-    }));
+    s.blocks = s.blocks.map((b) => {
+      const out: SlideBlock = {
+        ...b,
+        id: b.id || 'b_' + Math.random().toString(36).slice(2, 9),
+        type: b.type || 'text',
+        front: b.front ?? '',
+        back: b.back ?? '',
+      };
+      // RTDB strips empty objects. For HTML blocks that need explicit
+      // styling (cover, table, steps, pyramid, quiz, takeaway), an empty
+      // style2 {} is what tells renderBlockContent to skip the default
+      // .story-box class + borderLeft. Restore it if missing.
+      if (out.type === 'html' && !out.style2 && !out.style) {
+        out.style2 = {};
+      }
+      return out;
+    });
   }
   // Normalize background (RTDB strips empty objects).
   if (s.background && typeof s.background !== 'object') {
