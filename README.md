@@ -105,16 +105,111 @@ Open a third or fourth window to add more participants — everyone stays in syn
 
 ## Deployment
 
-Vercel is the easiest path:
+This project supports both local development and cloud deployment. The recommended platform is **Vercel** (zero-config with GitHub integration).
+
+---
+
+### Option A — Deploy to Vercel (Recommended)
+
+Vercel automatically builds and deploys on every push to `main`.
+
+#### 1. Fork or push to GitHub
+
+If you haven't already:
 
 ```bash
-npm i -g vercel
-vercel
+git init
+git add .
+git commit -m "Initial commit"
+gh repo create               # or create one at github.com
+git push -u origin main
 ```
 
-Copy every key from `.env.local` into the Vercel project's Environment Variables.
+#### 2. Import to Vercel
 
-Lock down your Firebase RTDB security rules before going live — test mode is world-readable and world-writable.
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Click **Import Git Repository** → select your repo
+3. Vercel auto-detects Next.js — click **Deploy**
+4. During (or after) deployment, add your environment variables:
+
+| Variable | Value source |
+|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Firebase Console → Project Settings → General → Your apps → Web `firebaseConfig.apiKey` |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `firebaseConfig.authDomain` |
+| `NEXT_PUBLIC_FIREBASE_DATABASE_URL` | `firebaseConfig.databaseURL` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `firebaseConfig.projectId` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | `firebaseConfig.storageBucket` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | `firebaseConfig.messagingSenderId` |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | `firebaseConfig.appId` |
+| `NEXT_PUBLIC_ADMIN_PASSWORD` | Your chosen admin password |
+| `ADMIN_PASSWORD` | Same as `NEXT_PUBLIC_ADMIN_PASSWORD` |
+
+To add them after deployment: Vercel Dashboard → your project → **Settings** → **Environment Variables**.
+
+#### 3. Firebase security rules (before going live!)
+
+1. Firebase Console → Build → **Realtime Database** → **Rules**
+2. Replace the rules with something like:
+
+```json
+{
+  "rules": {
+    ".read": true,
+    "rooms": {
+      "$roomId": {
+        ".read": true,
+        ".write": false
+      }
+    }
+  }
+}
+```
+
+> The above allows anyone to read rooms but only the server to write. Adjust to your needs.
+
+That's it — your app will be live at `https://your-project.vercel.app`.
+
+---
+
+### Option B — Run Locally
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/vinaswu/sharing-aug.git
+cd sharing-aug/sharing-presentation
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up Firebase and create .env.local
+#    (see Step 2–3 in Quick Start above)
+cp env.example .env.local
+# Then edit .env.local with your Firebase values and admin password
+
+# 4. Start dev server
+npm run dev
+# → http://localhost:3000
+```
+
+For local HTTPS (needed for some browser features), use a tunnel:
+
+```bash
+npx cloudflared tunnel --url http://localhost:3000
+```
+
+> Note: `npm run dev` already listens on `0.0.0.0` so other devices on the LAN can access it using your machine's local IP.
+
+---
+
+### Switching between local and cloud
+
+| Scenario | What to change |
+|---|---|
+| Already have `.env.local` for local dev | Copy the same values to Vercel Environment Variables |
+| Deploying a new version | Push to `main` → Vercel auto-builds and deploys |
+| Previewing a branch | Vercel creates a preview URL for every PR automatically |
+
+> **One Firebase project works for both.** Both local (`localhost:3000`) and Vercel use the same Realtime Database — participants can join from either URL as long as the `firebaseConfig` is identical.
 
 ## Project Layout
 
@@ -126,23 +221,29 @@ sharing-presentation/
 │   ├── globals.css                      # Global theme (CSS variables)
 │   ├── admin/
 │   │   ├── page.tsx                     # Admin login page
+│   │   ├── builder/[roomId]/page.tsx   # Slide Builder visual editor
 │   │   └── dashboard/[roomId]/page.tsx  # Admin control panel
-│   ├── api/admin/auth/                  # Admin auth API route
+│   ├── api/admin/auth/route.ts          # Admin auth API route
 │   └── presenter/[roomId]/page.tsx      # Participant slide page
 ├── components/
 │   ├── SlideViewer.tsx                  # Slide rendering core
+│   ├── BlockRenderer.tsx                # HTML content block renderer
+│   ├── SlideBuilder.tsx                 # Slide Builder UI
+│   ├── ElementToolbar.tsx               # Slide Builder toolbar
+│   ├── HTMLEditor.tsx                  # Rich-text HTML editor
 │   ├── Navigation.tsx                   # Prev/next + progress
 │   ├── CursorOverlay.tsx                # Shared cursor layer
 │   ├── BubbleEffect.tsx                 # Click feedback effect
-│   ├── ChatInput.tsx                   # Chat message input (press / to open)
-│   ├── ChatMessagePanel.tsx            # Floating message panel with auto-hide
+│   ├── ChatInput.tsx                    # Chat message input (press / to open)
+│   ├── ChatMessagePanel.tsx             # Floating message panel with auto-hide
 │   └── LikeLeaderboard.tsx             # Floating click-count leaderboard
 ├── lib/
 │   ├── firebase.ts                      # Firebase initialization
 │   ├── hooks.ts                         # useRoom, useAdminSlideControl, ...
 │   ├── slides-data.ts                   # Slide content (Chapter 3 of Pyramid Principle)
+│   ├── customSlides.ts                 # Custom slide overrides
 │   └── types.ts                         # Shared TS types
-├── .env.local.example                   # Environment variable template
+├── env.example                           # Environment variable template (copy to .env.local)
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
